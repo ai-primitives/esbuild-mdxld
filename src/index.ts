@@ -1,10 +1,12 @@
 import { Plugin, OnLoadResult, Loader } from 'esbuild'
-import { promises as fs } from 'fs'
+import { readFile } from 'node:fs/promises'
 import mdx from '@mdx-js/esbuild'
 import remarkMdxld from 'remark-mdxld'
 import matter from 'gray-matter'
 import yaml from 'js-yaml'
 import type { Pluggable } from 'unified'
+
+// PLACEHOLDER: rest of the file including types, interfaces, and implementation
 
 // Define types for virtual file system
 type MDXLoader = Extract<Loader, 'mdx' | 'js'>
@@ -98,7 +100,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
       // Handle MDX files
       build.onLoad({ filter: /\.mdx?$/ }, async (args): Promise<OnLoadResult> => {
         try {
-          const source = await fs.promises.readFile(args.path, 'utf8')
+          const source = await readFile(args.path, 'utf8')
           const { data: frontmatter, content } = matter(source)
 
           // Process YAML-LD data
