@@ -14,7 +14,7 @@ describe('mdxld plugin - HTTP imports', () => {
   it('should resolve HTTP imports', async () => {
     const mockGet = vi.fn().mockImplementation(async () => ({
       ok: true,
-      text: async () => 'Test content'
+      text: async () => 'Test content',
     }))
     vi.stubGlobal('fetch', mockGet)
 
@@ -57,7 +57,7 @@ describe('mdxld plugin - HTTP imports', () => {
 
     const mockGet = vi.fn().mockImplementation(async () => ({
       ok: true,
-      text: async () => responses[callCount++]
+      text: async () => responses[callCount++],
     }))
     vi.stubGlobal('fetch', mockGet)
 

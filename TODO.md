@@ -12,6 +12,7 @@
   - [x] Handle error cases and timeouts
 
 ## Current Blockers
+
 - [ ] Need unified package for proper type definitions
 - [ ] Resolve type errors in MDXLDOptions interface
 

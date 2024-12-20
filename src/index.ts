@@ -1,4 +1,4 @@
-import { Plugin, OnLoadArgs, OnLoadResult, Loader } from 'esbuild'
+import { Plugin, OnLoadResult, Loader } from 'esbuild'
 import { readFile } from 'node:fs/promises'
 import { parse } from 'yaml'
 import mdx from '@mdx-js/esbuild'
@@ -9,7 +9,7 @@ const httpCache = new Map<string, { content: string; timestamp: number }>()
 const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
 // Virtual file system for processed content
-const virtualFs = new Map<string, string>()
+const virtualFs = new Map<string, { contents: string; loader: Loader }>()
 
 export interface MDXLDOptions {
   jsxImportSource?: string
@@ -58,7 +58,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
       mdxPlugin.setup(build)
 
       // Handle HTTP imports resolution
-      build.onResolve({ filter: /^https?:\/\// }, args => ({
+      build.onResolve({ filter: /^https?:\/\// }, (args) => ({
         path: args.path,
         namespace: 'http-url',
       }))
@@ -92,6 +92,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
           const match = source.match(/^---\n([\s\S]*?)\n---/)
 
           if (!match || !match[1].trim()) {
+            virtualFs.set(args.path, { contents: source, loader: 'mdx' as Loader })
             return { contents: source, loader: 'mdx' as Loader }
           }
 
@@ -106,9 +107,9 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
             const contentAfterFrontmatter = source.slice(match[0].length).trim()
             const processedContent = `---\n${yamlString}\n---\n\n${contentAfterFrontmatter}`
 
-            virtualFs.set(args.path, processedContent)
+            virtualFs.set(args.path, { contents: processedContent, loader: 'mdx' as Loader })
             return { contents: processedContent, loader: 'mdx' as Loader }
-          } catch (yamlError) {
+          } catch {
             return { errors: [{ text: 'Invalid YAML syntax' }], loader: 'mdx' as Loader }
           }
         } catch (error) {
@@ -119,11 +120,11 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
 
       // Handle virtual files
       build.onLoad({ filter: /.*/, namespace: 'virtual' }, (args): OnLoadResult => {
-        const contents = virtualFs.get(args.path)
-        if (!contents) {
+        const file = virtualFs.get(args.path)
+        if (!file) {
           return { errors: [{ text: `Virtual file not found: ${args.path}` }], loader: 'mdx' as Loader }
         }
-        return { contents, loader: 'mdx' as Loader }
+        return { contents: file.contents, loader: file.loader }
       })
     },
   }
