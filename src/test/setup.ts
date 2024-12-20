@@ -110,26 +110,35 @@ export const mockResponse = vi.fn((body?: BodyInit | null, init?: ResponseInit) 
   return new MockResponse(body, init)
 }) as unknown as typeof Response
 
-// Create a properly typed fetch mock
+// Create a properly typed fetch mock that uses MockResponse
 export const mockFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const urlString = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
 
-  // Always return 'Response 1' for test.mdx URLs
-  if (urlString.includes('test.mdx')) {
-    return new MockResponse('Response 1', {
+  // Return 404 for error or not-found URLs
+  if (urlString.includes('error') || urlString.includes('not-found') || urlString.includes('404')) {
+    return new MockResponse(null, { status: 404, statusText: 'Not Found' })
+  }
+
+  // Return cached content for cached.mdx
+  if (urlString.includes('cached.mdx')) {
+    return new MockResponse('# Cached Content', {
       status: 200,
       statusText: 'OK',
       headers: new (mockHeaders as typeof Headers)()
     })
   }
 
-  // Return 404 for error or not-found URLs
-  if (urlString.includes('error') || urlString.includes('not-found')) {
-    return new MockResponse(null, { status: 404, statusText: 'Not Found' })
+  // Return test content for test.mdx
+  if (urlString.includes('test.mdx')) {
+    return new MockResponse('# Test Content', {
+      status: 200,
+      statusText: 'OK',
+      headers: new (mockHeaders as typeof Headers)()
+    })
   }
 
   // Default response
-  return new MockResponse('Response 1', {
+  return new MockResponse('# Default Content', {
     status: 200,
     statusText: 'OK',
     headers: new (mockHeaders as typeof Headers)()
