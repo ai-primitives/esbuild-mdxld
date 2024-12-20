@@ -1,7 +1,6 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 import { vi } from 'vitest'
-import { fetch, Headers, Request, Response } from 'undici'
 
 // Create mock implementations with proper types
 const mockHeaders = vi.fn(() => ({
@@ -30,7 +29,7 @@ const mockResponse = vi.fn(() => ({
 
 // Assign mocks to globalThis if fetch is not already defined
 if (!globalThis.fetch) {
-  globalThis.fetch = vi.fn() as unknown as typeof fetch
+  globalThis.fetch = vi.fn()
   globalThis.Headers = mockHeaders
   globalThis.Request = mockRequest
   globalThis.Response = mockResponse

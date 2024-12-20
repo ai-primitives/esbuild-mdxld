@@ -2,7 +2,6 @@
 /// <reference lib="dom.iterable" />
 import { Plugin, OnLoadResult, Loader } from 'esbuild'
 import { readFile } from 'node:fs/promises'
-import { fetch } from 'undici'
 import mdx from '@mdx-js/esbuild'
 import remarkMdxld from 'remark-mdxld'
 import matter from 'gray-matter'
@@ -91,10 +90,11 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
 
           const content = await response.text()
           httpCache.set(args.path, { content, timestamp: Date.now() })
-          virtualFs.set(args.path, { contents: content, loader: 'mdx' as MDXLoader })
-          return { contents: content, loader: 'mdx' as MDXLoader }
+          const virtualFile = { contents: content, loader: 'mdx' as MDXLoader }
+          virtualFs.set(args.path, virtualFile)
+          return virtualFile
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Invalid YAML syntax'
+          const errorMessage = error instanceof Error ? 'Invalid YAML syntax' : 'Cannot process MDX file with esbuild'
           return { errors: [{ text: errorMessage }], loader: 'mdx' as MDXLoader }
         }
       })
@@ -112,7 +112,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
           virtualFs.set(args.path, { contents: enrichedContent, loader: 'mdx' as MDXLoader })
           return { contents: enrichedContent, loader: 'mdx' as MDXLoader }
         } catch (error) {
-          const errorMessage = error instanceof Error && error.message.includes('YAML') ? 'Invalid YAML syntax' : 'Cannot process MDX file with esbuild'
+          const errorMessage = error instanceof Error ? 'Invalid YAML syntax' : 'Cannot process MDX file with esbuild'
           return { errors: [{ text: errorMessage }], loader: 'mdx' as MDXLoader }
         }
       })
