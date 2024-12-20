@@ -11,10 +11,73 @@ import { MDXLoader, VirtualFile, LoadArgs, MDXOnLoadResult, MDXLDOptions, Resolv
 // Virtual file system for processed content - keep outside plugin function to persist across instances
 const virtualFs = new Map<string, VirtualFile>()
 
-const processYamlLd = (data: Record<string, unknown>, preferDollarPrefix: boolean): Record<string, unknown> => {
-  const processValue = (value: unknown): unknown => {
+function preprocessYaml(content: string): string {
+  let processed = content
+    .replace(/^(@\w+):/gm, '__at__$1:')
+    .replace(/(\s+)(@\w+):/g, '$1__at__$2:')
+
+  const lines = processed.split('\n')
+  const result = []
+  let currentIndent = ''
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const match = line.match(/^(\s*)(author|creator|publisher):\s*(@\w+):(.*)$/)
+    if (match) {
+      const [, indent, key, type, rest] = match
+      currentIndent = indent
+      result.push(`${indent}${key}:`)
+      result.push(`${indent}  __at__${type}:${rest}`)
+    } else if (line.trim().startsWith('@')) {
+      result.push(currentIndent + '__at__' + line.trim())
+    } else {
+      result.push(line)
+    }
+  }
+
+  return result.join('\n')
+}
+
+function postprocessYaml(data: unknown): unknown {
+  if (Array.isArray(data)) {
+    return data.map(item => postprocessYaml(item))
+  }
+
+  if (typeof data !== 'object' || data === null) {
+    return data
+  }
+
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(data)) {
+    const processedKey = key.replace(/^__at__@/, '@')
+    result[processedKey] = postprocessYaml(value)
+  }
+  return result
+}
+
+function parseYamlContent(content: string): Record<string, unknown> {
+  try {
+    const preprocessed = preprocessYaml(content)
+    const parsed = yaml.load(preprocessed) as Record<string, unknown>
+    if (typeof parsed !== 'object' || parsed === null) {
+      throw new Error('Invalid YAML: must be an object')
+    }
+    return postprocessYaml(parsed) as Record<string, unknown>
+  } catch (error) {
+    console.error('YAML parsing error:', error)
+    throw error
+  }
+}
+
+function processYamlLd(data: Record<string, unknown>, preferDollarPrefix: boolean): Record<string, unknown> {
+  function processValue(value: unknown): unknown {
     if (Array.isArray(value)) {
-      return value.map(processValue)
+      return value.map(item => {
+        if (typeof item === 'object' && item !== null) {
+          return processObject(item as Record<string, unknown>)
+        }
+        return item
+      })
     }
     if (typeof value === 'object' && value !== null) {
       return processObject(value as Record<string, unknown>)
@@ -22,14 +85,12 @@ const processYamlLd = (data: Record<string, unknown>, preferDollarPrefix: boolea
     return value
   }
 
-  const processObject = (obj: Record<string, unknown>): Record<string, unknown> => {
+  function processObject(obj: Record<string, unknown>): Record<string, unknown> {
     const result: Record<string, unknown> = {}
     for (const [key, value] of Object.entries(obj)) {
       let newKey = key
-      if (key.startsWith('@') && preferDollarPrefix) {
+      if (preferDollarPrefix && key.startsWith('@')) {
         newKey = `$${key.slice(1)}`
-      } else if (key.startsWith('$') && !preferDollarPrefix) {
-        newKey = `@${key.slice(1)}`
       }
       result[newKey] = processValue(value)
     }
@@ -37,6 +98,22 @@ const processYamlLd = (data: Record<string, unknown>, preferDollarPrefix: boolea
   }
 
   return processObject(data)
+}
+
+function formatJsonString(obj: Record<string, unknown>): string {
+  function formatValue(value: unknown): string {
+    if (typeof value === 'object' && value !== null) {
+      if (Array.isArray(value)) {
+        return `[${value.map(formatValue).join(', ')}]`
+      }
+      const entries = Object.entries(value).map(([k, v]) => `"${k}": ${formatValue(v)}`)
+      return `{\n${entries.map(e => '  ' + e).join(',\n')}\n}`
+    }
+    return JSON.stringify(value)
+  }
+
+  const entries = Object.entries(obj).map(([key, value]) => `"${key}": ${formatValue(value)}`)
+  return `{\n${entries.join(',\n')}\n}`
 }
 
 export const mdxld = (options: MDXLDOptions = {}): Plugin => {
@@ -48,79 +125,45 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
   return {
     name: 'mdxld',
     setup(build) {
-      // Handle HTTP imports resolution
       build.onResolve({ filter: /^https?:\/\// }, (args: ResolveArgs): OnResolveResult => ({
         path: args.path,
         namespace: 'http-url'
       }))
 
-      // Handle file namespace first
       build.onLoad({ filter: /\.mdx?$/, namespace: 'file' }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
         try {
           const contents = await fsPromises.readFile(args.path, 'utf8')
+          const virtualPath = `virtual:${args.path}`
+
+          const matches = contents.match(/^---\n([\s\S]*?)\n---/)
+          if (!matches || !matches[1].trim()) {
+            return {
+              contents,
+              loader: 'mdx' as MDXLoader
+            }
+          }
+
           try {
-            const { data: frontmatter, content } = matter(contents)
+            const frontmatter = parseYamlContent(matches[1])
 
-            // Handle files without frontmatter or empty frontmatter
-            if (!frontmatter || Object.keys(frontmatter).length === 0) {
-              const virtualPath = `virtual:${args.path}`
-              const virtualFile: VirtualFile = {
-                contents: contents, // Use original contents for files without frontmatter
-                loader: 'mdx' as MDXLoader,
-                watchFiles: [args.path]
-              }
-              virtualFs.set(virtualPath, virtualFile)
-              return {
-                path: virtualPath,
-                namespace: 'virtual',
-                watchFiles: [args.path]
-              }
+            const processedYaml = processYamlLd(frontmatter, options?.preferDollarPrefix ?? false)
+
+            const processedContent = formatJsonString(processedYaml)
+
+            const virtualFile: MDXOnLoadResult = {
+              contents: processedContent,
+              loader: 'mdx' as MDXLoader,
+              watchFiles: [args.path]
             }
+            virtualFs.set(virtualPath, virtualFile)
 
-            try {
-              // Process YAML-LD data
-              const processedYaml = processYamlLd(frontmatter, Boolean(options.preferDollarPrefix))
-              console.log('Processed YAML:', processedYaml)
-
-              // Convert processed YAML back to string
-              const yamlString = yaml.dump(processedYaml, {
-                quotingType: '"',
-                forceQuotes: true,
-                lineWidth: -1,
-                noRefs: true,
-                noCompatMode: true,
-                flowLevel: -1,
-                indent: 2,
-                sortKeys: false
-              })
-
-              // Create virtual file path and content
-              const virtualPath = `virtual:${args.path}`
-              const processedContent = `---\n${yamlString}---\n\n${content}`
-
-              // Store the virtual file
-              const virtualFile: VirtualFile = {
-                contents: processedContent,
-                loader: 'mdx' as MDXLoader,
-                watchFiles: [args.path]
-              }
-              virtualFs.set(virtualPath, virtualFile)
-              console.log('Stored virtual file:', virtualFile)
-
-              return {
-                path: virtualPath,
-                namespace: 'virtual',
-                watchFiles: [args.path]
-              }
-            } catch (yamlError) {
-              console.error('YAML processing error:', yamlError)
-              return {
-                errors: [{ text: 'Invalid YAML syntax' }],
-                loader: 'mdx' as MDXLoader
-              }
+            return {
+              path: virtualPath,
+              namespace: 'virtual',
+              watchFiles: [args.path]
             }
-          } catch (matterError) {
-            console.error('Matter parsing error:', matterError)
+          } catch (yamlError) {
+            console.error('YAML processing error:', yamlError)
             return {
               errors: [{ text: 'Invalid YAML syntax' }],
               loader: 'mdx' as MDXLoader
@@ -135,25 +178,18 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
         }
       })
 
-      // Handle virtual files next
       build.onLoad({ filter: /.*/, namespace: 'virtual' }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
-        console.log('Virtual file handler called with path:', args.path)
-        console.log('Virtual files in map:', Array.from(virtualFs.keys()))
         const virtualFile = virtualFs.get(args.path)
         if (!virtualFile) {
-          console.log('Virtual file not found')
           return {
             errors: [{ text: `Virtual file not found: ${args.path}` }],
             loader: 'mdx' as MDXLoader
           }
         }
-        console.log('Found virtual file:', virtualFile)
         return virtualFile
       })
 
-      // Handle HTTP imports last
       build.onLoad({ filter: /.*/, namespace: 'http-url' }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
-        // Check cache first
         const cachedFile = virtualFs.get(args.path)
         if (cachedFile) {
           return cachedFile
@@ -169,7 +205,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
           }
 
           const contents = await response.text()
-          const virtualFile: VirtualFile = {
+          const virtualFile: MDXOnLoadResult = {
             contents,
             loader: 'mdx' as MDXLoader,
             watchFiles: [args.path]
