@@ -6,11 +6,14 @@ import remarkMdxld from 'remark-mdxld'
 import type { Pluggable } from 'unified'
 import { fetch } from 'undici'
 
+// Define types for virtual file system
+type MDXLoader = Extract<Loader, 'mdx'>
+type VirtualFile = { contents: string; loader: MDXLoader }
 const httpCache = new Map<string, { content: string; timestamp: number }>()
 const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
 // Virtual file system for processed content
-const virtualFs = new Map<string, { contents: string; loader: Loader }>()
+const virtualFs = new Map<string, VirtualFile>()
 
 export interface MDXLDOptions {
   jsxImportSource?: string
@@ -69,7 +72,8 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
         try {
           const cached = httpCache.get(args.path)
           if (cached && Date.now() - cached.timestamp < (options.httpCacheTTL ?? CACHE_TTL)) {
-            return { contents: cached.content, loader: 'mdx' as Loader }
+            virtualFs.set(args.path, { contents: cached.content, loader: 'mdx' as MDXLoader })
+            return { contents: cached.content, loader: 'mdx' as MDXLoader }
           }
 
           const response = await fetch(args.path)
@@ -79,10 +83,11 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
 
           const content = await response.text()
           httpCache.set(args.path, { content, timestamp: Date.now() })
-          return { contents: content, loader: 'mdx' as Loader }
+          virtualFs.set(args.path, { contents: content, loader: 'mdx' as MDXLoader })
+          return { contents: content, loader: 'mdx' as MDXLoader }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'HTTP 404: Not Found'
-          return { errors: [{ text: errorMessage }], loader: 'mdx' as Loader }
+          return { errors: [{ text: errorMessage }], loader: 'mdx' as MDXLoader }
         }
       })
 
@@ -93,8 +98,8 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
           const match = source.match(/^---\n([\s\S]*?)\n---/)
 
           if (!match || !match[1].trim()) {
-            virtualFs.set(args.path, { contents: source, loader: 'mdx' as Loader })
-            return { contents: source, loader: 'mdx' as Loader }
+            virtualFs.set(args.path, { contents: source, loader: 'mdx' as MDXLoader })
+            return { contents: source, loader: 'mdx' as MDXLoader }
           }
 
           try {
@@ -108,14 +113,15 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
             const contentAfterFrontmatter = source.slice(match[0].length).trim()
             const processedContent = `---\n${yamlString}\n---\n\n${contentAfterFrontmatter}`
 
-            virtualFs.set(args.path, { contents: processedContent, loader: 'mdx' as Loader })
-            return { contents: processedContent, loader: 'mdx' as Loader }
-          } catch {
-            return { errors: [{ text: 'Invalid YAML syntax' }], loader: 'mdx' as Loader }
+            virtualFs.set(args.path, { contents: processedContent, loader: 'mdx' as MDXLoader })
+            return { contents: processedContent, loader: 'mdx' as MDXLoader }
+          } catch (error) {
+            console.error('Failed to process YAML:', error)
+            return { errors: [{ text: 'Invalid YAML syntax' }], loader: 'mdx' as MDXLoader }
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-          return { errors: [{ text: `Cannot process MDX file: ${errorMessage}` }], loader: 'mdx' as Loader }
+          return { errors: [{ text: `Cannot process MDX file: ${errorMessage}` }], loader: 'mdx' as MDXLoader }
         }
       })
 
@@ -123,7 +129,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
       build.onLoad({ filter: /.*/, namespace: 'virtual' }, (args): OnLoadResult => {
         const file = virtualFs.get(args.path)
         if (!file) {
-          return { errors: [{ text: `Virtual file not found: ${args.path}` }], loader: 'mdx' as Loader }
+          return { errors: [{ text: `Virtual file not found: ${args.path}` }], loader: 'mdx' as MDXLoader }
         }
         return { contents: file.contents, loader: file.loader }
       })

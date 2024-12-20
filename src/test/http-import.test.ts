@@ -1,3 +1,4 @@
+/// <reference lib="dom" />
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mdxld } from '../index'
 import { createBuildStub } from './utils'
@@ -15,8 +16,10 @@ describe('mdxld plugin - HTTP imports', () => {
     const mockGet = vi.fn().mockImplementation(async () => ({
       ok: true,
       text: async () => 'Test content',
+      status: 200,
+      statusText: 'OK',
     }))
-    vi.stubGlobal('fetch', mockGet)
+    global.fetch = mockGet
 
     const plugin = mdxld()
     const build = createBuildStub()
@@ -32,10 +35,12 @@ describe('mdxld plugin - HTTP imports', () => {
   })
 
   it('should handle HTTP import errors', async () => {
-    const mockGet = vi.fn().mockImplementation(() => {
-      throw new Error('HTTP 404: Not Found')
-    })
-    vi.stubGlobal('fetch', mockGet)
+    const mockGet = vi.fn().mockImplementation(async () => ({
+      ok: false,
+      status: 404,
+      statusText: 'Not Found',
+    }))
+    global.fetch = mockGet
 
     const plugin = mdxld()
     const build = createBuildStub()
