@@ -4,7 +4,8 @@ import { createBuildStub, MockWithHandlers } from './utils'
 import { mockFetch } from './setup'
 import type { PluginBuild, OnLoadArgs, OnLoadResult, OnResolveArgs } from 'esbuild'
 
-type HttpHandlerArgs = OnLoadArgs & OnResolveArgs & { resolveDir: string }
+export type HttpHandlerArgs = OnLoadArgs & OnResolveArgs & { resolveDir: string }
+export type ExtendedOnLoadResult = OnLoadResult & { path?: string }
 
 describe('mdxld plugin - HTTP imports', () => {
   let plugin: ReturnType<typeof mdxld>
@@ -38,10 +39,10 @@ describe('mdxld plugin - HTTP imports', () => {
       with: {},
       resolveDir: '/',
       kind: 'entry-point',
-      importer: ''
+      importer: '',
     }
 
-    const result = await callback(args) as OnLoadResult
+    const result = (await callback(args)) as ExtendedOnLoadResult
     expect(result.contents).toBe('# Test Content')
     expect(result.loader).toBe('mdx')
     expect(mockFetch).toHaveBeenCalledWith('https://example.com/test.mdx')
@@ -60,10 +61,10 @@ describe('mdxld plugin - HTTP imports', () => {
       with: {},
       resolveDir: '/',
       kind: 'entry-point',
-      importer: ''
+      importer: '',
     }
 
-    const result = await callback(args) as OnLoadResult
+    const result = (await callback(args)) as ExtendedOnLoadResult
     expect(result.errors).toBeDefined()
     expect(result.errors![0].text).toBe('HTTP 404: Not Found')
     expect(result.loader).toBe('mdx')
@@ -83,19 +84,20 @@ describe('mdxld plugin - HTTP imports', () => {
       with: {},
       resolveDir: '/',
       kind: 'entry-point',
-      importer: ''
+      importer: '',
     }
 
     // First request
-    const result1 = await callback(args) as OnLoadResult
+    const result1 = (await callback(args)) as ExtendedOnLoadResult
     expect(result1.contents).toBe('# Cached Content')
     expect(result1.loader).toBe('mdx')
 
     // Second request should use cache
-    const result2 = await callback(args) as OnLoadResult
+    const result2 = (await callback(args)) as ExtendedOnLoadResult
     expect(result2.contents).toBe('# Cached Content')
     expect(result2.loader).toBe('mdx')
 
     // Fetch should only be called once due to caching
     expect(mockFetch).toHaveBeenCalledTimes(1)
   })
+})

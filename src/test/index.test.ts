@@ -4,6 +4,7 @@ import { mdxld } from '../index'
 import * as fs from 'node:fs/promises'
 import path from 'node:path'
 import { createBuildStub, setupTestPlugin, MockWithHandlers } from './utils'
+import type { ExtendedOnLoadResult } from './http-import.test'
 
 vi.mock('node:fs/promises')
 
@@ -38,25 +39,41 @@ describe('mdxld plugin', () => {
 
       const loadCallback = getHandlerForNamespace('file')
       expect(loadCallback).toBeDefined()
-      const result = await loadCallback({
+      if (!loadCallback) throw new Error('File handler not found')
+
+      const result = (await loadCallback({
         path: mdxPath,
         namespace: 'file',
         suffix: '',
         pluginData: null,
-        with: {}
-      })
-      console.log('File handler result:', result)
-      const virtualPath = result.path
+        with: {},
+        resolveDir: '/',
+        kind: 'entry-point',
+        importer: '',
+      })) as ExtendedOnLoadResult
 
+      const virtualPath = result.path || ''
       const virtualCallback = getHandlerForNamespace('virtual')
       expect(virtualCallback).toBeDefined()
-      console.log('Calling virtual handler with path:', virtualPath)
-      const virtualResult = await virtualCallback({ path: virtualPath, namespace: 'virtual' })
+      if (!virtualCallback) throw new Error('Virtual handler not found')
+
+      const virtualResult = (await virtualCallback({
+        path: virtualPath,
+        namespace: 'virtual',
+        suffix: '',
+        pluginData: null,
+        with: {},
+        resolveDir: '/',
+        kind: 'entry-point',
+        importer: '',
+      })) as ExtendedOnLoadResult
 
       expect(virtualResult.contents).toBeDefined()
-      expect(virtualResult.contents).toContain('"@context": "https://schema.org"')
-      expect(virtualResult.contents).toContain('"@type": "BlogPosting"')
-      expect(virtualResult.contents).toContain('"title": "Understanding YAML-LD in MDX"')
+      expect(typeof virtualResult.contents === 'string').toBe(true)
+      const contents = virtualResult.contents as string
+      expect(contents).toContain('"@context": "https://schema.org"')
+      expect(contents).toContain('"@type": "BlogPosting"')
+      expect(contents).toContain('"title": "Understanding YAML-LD in MDX"')
       expect(virtualResult.loader).toBe('mdx')
     })
 
@@ -67,17 +84,41 @@ describe('mdxld plugin', () => {
 
       const loadCallback = getHandlerForNamespace('file')
       expect(loadCallback).toBeDefined()
-      const result = await loadCallback({ path: mdxPath, namespace: 'file' })
-      const virtualPath = result.path
+      if (!loadCallback) throw new Error('File handler not found')
 
+      const result = (await loadCallback({
+        path: mdxPath,
+        namespace: 'file',
+        suffix: '',
+        pluginData: null,
+        with: {},
+        resolveDir: '/',
+        kind: 'entry-point',
+        importer: '',
+      })) as ExtendedOnLoadResult
+
+      const virtualPath = result.path || ''
       const virtualCallback = getHandlerForNamespace('virtual')
       expect(virtualCallback).toBeDefined()
-      const virtualResult = await virtualCallback({ path: virtualPath, namespace: 'virtual' })
+      if (!virtualCallback) throw new Error('Virtual handler not found')
+
+      const virtualResult = (await virtualCallback({
+        path: virtualPath,
+        namespace: 'virtual',
+        suffix: '',
+        pluginData: null,
+        with: {},
+        resolveDir: '/',
+        kind: 'entry-point',
+        importer: '',
+      })) as ExtendedOnLoadResult
 
       expect(virtualResult.contents).toBeDefined()
-      expect(virtualResult.contents).toContain('"$type": "Product"')
-      expect(virtualResult.contents).toContain('"price": 29.99')
-      expect(virtualResult.contents).toContain('"availability": "InStock"')
+      expect(typeof virtualResult.contents === 'string').toBe(true)
+      const contents = virtualResult.contents as string
+      expect(contents).toContain('"$type": "Product"')
+      expect(contents).toContain('"price": 29.99')
+      expect(contents).toContain('"availability": "InStock"')
       expect(virtualResult.loader).toBe('mdx')
     })
   })
@@ -90,24 +131,42 @@ describe('mdxld plugin', () => {
 
       const loadCallback = getHandlerForNamespace('file')
       expect(loadCallback).toBeDefined()
-      const result = await loadCallback({
+      if (!loadCallback) throw new Error('File handler not found')
+
+      const result = (await loadCallback({
         path: mdxPath,
         namespace: 'file',
         suffix: '',
         pluginData: null,
-        with: {}
-      })
-      const virtualPath = result.path
+        with: {},
+        resolveDir: '/',
+        kind: 'entry-point',
+        importer: '',
+      })) as ExtendedOnLoadResult
 
+      const virtualPath = result.path || ''
       const virtualCallback = getHandlerForNamespace('virtual')
       expect(virtualCallback).toBeDefined()
-      const virtualResult = await virtualCallback({ path: virtualPath, namespace: 'virtual' })
+      if (!virtualCallback) throw new Error('Virtual handler not found')
+
+      const virtualResult = (await virtualCallback({
+        path: virtualPath,
+        namespace: 'virtual',
+        suffix: '',
+        pluginData: null,
+        with: {},
+        resolveDir: '/',
+        kind: 'entry-point',
+        importer: '',
+      })) as ExtendedOnLoadResult
 
       expect(virtualResult.contents).toBeDefined()
-      expect(virtualResult.contents).toContain('"$type": "Event"')
-      expect(virtualResult.contents).toContain('"$type": "Place"')
-      expect(virtualResult.contents).toContain('"$type": "Person"')
-      expect(virtualResult.contents).toContain('"topics": ["AI", "Machine Learning"]')
+      expect(typeof virtualResult.contents === 'string').toBe(true)
+      const contents = virtualResult.contents as string
+      expect(contents).toContain('"$type": "Event"')
+      expect(contents).toContain('"$type": "Place"')
+      expect(contents).toContain('"$type": "Person"')
+      expect(contents).toContain('"topics": ["AI", "Machine Learning"]')
       expect(virtualResult.loader).toBe('mdx')
     })
   })
@@ -120,16 +179,21 @@ describe('mdxld plugin', () => {
 
       const loadCallback = getHandlerForNamespace('file')
       expect(loadCallback).toBeDefined()
-      const result = await loadCallback({
+      if (!loadCallback) throw new Error('File handler not found')
+
+      const result = (await loadCallback({
         path: mdxPath,
         namespace: 'file',
         suffix: '',
         pluginData: null,
-        with: {}
-      })
+        with: {},
+        resolveDir: '/',
+        kind: 'entry-point',
+        importer: '',
+      })) as ExtendedOnLoadResult
 
       expect(result.errors).toBeDefined()
-      expect(result.errors[0].text).toBe('Invalid YAML syntax')
+      expect(result.errors![0].text).toBe('Invalid YAML syntax')
       expect(result.loader).toBe('mdx')
     })
 
@@ -140,18 +204,34 @@ describe('mdxld plugin', () => {
 
       const loadCallback = getHandlerForNamespace('file')
       expect(loadCallback).toBeDefined()
-      const result = await loadCallback({
+      if (!loadCallback) throw new Error('File handler not found')
+
+      const result = (await loadCallback({
         path: mdxPath,
         namespace: 'file',
         suffix: '',
         pluginData: null,
-        with: {}
-      })
-      const virtualPath = result.path
+        with: {},
+        resolveDir: '/',
+        kind: 'entry-point',
+        importer: '',
+      })) as ExtendedOnLoadResult
 
+      const virtualPath = result.path || ''
       const virtualCallback = getHandlerForNamespace('virtual')
       expect(virtualCallback).toBeDefined()
-      const virtualResult = await virtualCallback({ path: virtualPath, namespace: 'virtual' })
+      if (!virtualCallback) throw new Error('Virtual handler not found')
+
+      const virtualResult = (await virtualCallback({
+        path: virtualPath,
+        namespace: 'virtual',
+        suffix: '',
+        pluginData: null,
+        with: {},
+        resolveDir: '/',
+        kind: 'entry-point',
+        importer: '',
+      })) as ExtendedOnLoadResult
 
       expect(virtualResult.contents).toBe(content)
       expect(virtualResult.loader).toBe('mdx')
@@ -164,18 +244,34 @@ describe('mdxld plugin', () => {
 
       const loadCallback = getHandlerForNamespace('file')
       expect(loadCallback).toBeDefined()
-      const result = await loadCallback({
+      if (!loadCallback) throw new Error('File handler not found')
+
+      const result = (await loadCallback({
         path: mdxPath,
         namespace: 'file',
         suffix: '',
         pluginData: null,
-        with: {}
-      })
-      const virtualPath = result.path
+        with: {},
+        resolveDir: '/',
+        kind: 'entry-point',
+        importer: '',
+      })) as ExtendedOnLoadResult
 
+      const virtualPath = result.path || ''
       const virtualCallback = getHandlerForNamespace('virtual')
       expect(virtualCallback).toBeDefined()
-      const virtualResult = await virtualCallback({ path: virtualPath, namespace: 'virtual' })
+      if (!virtualCallback) throw new Error('Virtual handler not found')
+
+      const virtualResult = (await virtualCallback({
+        path: virtualPath,
+        namespace: 'virtual',
+        suffix: '',
+        pluginData: null,
+        with: {},
+        resolveDir: '/',
+        kind: 'entry-point',
+        importer: '',
+      })) as ExtendedOnLoadResult
 
       expect(virtualResult.contents).toBe(content)
       expect(virtualResult.loader).toBe('mdx')
