@@ -41,6 +41,25 @@ const fetchWithTimeout = (url: string, timeout: number): Promise<string> => {
   })
 }
 
+const processYamlLd = (data: Record<string, unknown>, preferDollarPrefix: boolean): Record<string, unknown> => {
+  const processValue = (value: unknown): unknown => {
+    if (Array.isArray(value)) {
+      return value.map(processValue)
+    }
+    if (typeof value === 'object' && value !== null) {
+      return processYamlLd(value as Record<string, unknown>, preferDollarPrefix)
+    }
+    return value
+  }
+
+  return Object.entries(data).reduce((acc, [key, value]) => {
+    const isLdKey = key.startsWith('@') || (preferDollarPrefix && key.startsWith('$'))
+    const cleanKey = isLdKey ? key.slice(1) : key
+    acc[cleanKey] = processValue(value)
+    return acc
+  }, {} as Record<string, unknown>)
+}
+
 export const mdxld = (options: MDXLDOptions = {}): Plugin => {
   const mdxPlugin = mdx({
     ...options,
@@ -68,21 +87,9 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
           if (match) {
             const frontmatter = match[1]
             const yamlData = parse(frontmatter)
-
-            const processedYaml = Object.entries(yamlData).reduce(
-              (acc, [key, value]) => {
-                if (key.startsWith('@') || (options.preferDollarPrefix && key.startsWith('$'))) {
-                  const cleanKey = key.slice(1)
-                  acc[cleanKey] = value
-                } else {
-                  acc[key] = value
-                }
-                return acc
-              },
-              {} as Record<string, unknown>,
-            )
-
-            const processedSource = source.replace(/^---\n[\s\S]*?\n---/, `---\n${JSON.stringify(processedYaml, null, 2)}\n---`)
+            const processedYaml = processYamlLd(yamlData, Boolean(options.preferDollarPrefix))
+            const yamlString = JSON.stringify(processedYaml, null, 2)
+            const processedSource = source.replace(/^---\n[\s\S]*?\n---/, `---\n${yamlString}\n---`)
 
             return {
               contents: processedSource,
@@ -125,6 +132,9 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
           }
 
           const content = await fetchWithTimeout(args.path, timeout)
+          if (!content) {
+            throw new Error('Empty response')
+          }
 
           httpCache.set(args.path, {
             content,
