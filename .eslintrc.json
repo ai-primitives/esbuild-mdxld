@@ -22,6 +22,16 @@
     "fetch": true,
     "Response": true,
     "Request": true,
-    "Headers": true
-  }
+    "Headers": true,
+    "global": true
+  },
+  "overrides": [
+    {
+      "files": ["src/test/**/*.ts"],
+      "env": {
+        "node": true,
+        "jest": true
+      }
+    }
+  ]
 }
