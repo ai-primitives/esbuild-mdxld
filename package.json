@@ -1,17 +1,17 @@
 {
-  "name": "package-template",
+  "name": "esbuild-mdxld",
   "version": "0.1.0",
-  "description": "A modern TypeScript package template with Vitest, Prettier, ESLint, and semantic versioning",
+  "description": "ESBuild plugin for MDX with Linked Data Context and URI/HTTP imports",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
-  "bin": {
-    "package-template": "bin/cli.js"
+  "exports": {
+    ".": "./dist/index.js",
+    "./wasm": "./dist/wasm.js"
   },
   "files": [
-    "dist",
-    "bin"
+    "dist"
   ],
   "scripts": {
     "build": "tsc",
@@ -22,20 +22,27 @@
     "prepublishOnly": "pnpm run build"
   },
   "keywords": [
-    "typescript",
-    "template",
-    "package",
-    "cli"
+    "esbuild",
+    "mdx",
+    "mdxld",
+    "plugin",
+    "linked-data",
+    "yaml-ld"
   ],
   "author": "AI Primitives",
   "license": "MIT",
   "homepage": "https://mdx.org.ai",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ai-primitives/package-template.git"
+    "url": "git+https://github.com/ai-primitives/esbuild-mdxld.git"
   },
   "bugs": {
-    "url": "https://github.com/ai-primitives/package-template/issues"
+    "url": "https://github.com/ai-primitives/esbuild-mdxld/issues"
+  },
+  "dependencies": {
+    "@mdx-js/esbuild": "^3.0.0",
+    "mdxld": "^0.1.0",
+    "remark-mdxld": "^0.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
