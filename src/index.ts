@@ -101,124 +101,140 @@ function processYamlLd(data: Record<string, unknown>, preferDollarPrefix: boolea
 }
 
 function formatJsonString(obj: Record<string, unknown>): string {
-  function formatValue(value: unknown): string {
-    if (typeof value === 'object' && value !== null) {
-      if (Array.isArray(value)) {
-        return `[${value.map(formatValue).join(', ')}]`
-      }
-      const entries = Object.entries(value).map(([k, v]) => `"${k}": ${formatValue(v)}`)
-      return `{\n${entries.map(e => '  ' + e).join(',\n')}\n}`
+  function replacer(_: string, value: unknown): unknown {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>)
+          .sort(([a], [b]) => a.localeCompare(b))
+      )
     }
-    return JSON.stringify(value)
+    return value
   }
 
-  const entries = Object.entries(obj).map(([key, value]) => `"${key}": ${formatValue(value)}`)
-  return `{\n${entries.join(',\n')}\n}`
+  const jsonString = JSON.stringify(obj, replacer, 2)
+    .replace(/":"/g, '": "')
+    .replace(/":\[/g, '": [')
+    .replace(/":{/g, '": {')
+    .replace(/":(\d+)/g, '": $1')
+    .replace(/,\n\s+"/g, ', "')
+    .replace(/\[\n\s+"/g, '["')
+    .replace(/"\n\s+\]/g, '"]')
+    .replace(/\[(.*?)\]/g, (match, contents) =>
+      contents.includes('{')
+        ? match
+        : match.replace(/",\s+"/g, '", "')
+    )
+
+  return jsonString
 }
 
-export const mdxld = (options: MDXLDOptions = {}): Plugin => {
-  const mdxPlugin = mdx({
-    ...options,
-    remarkPlugins: [[remarkMdxld, { preferDollarPrefix: options.preferDollarPrefix }], ...(options.remarkPlugins || [])],
-  })
-
+function convertVirtualFileToMDXResult(virtualFile: VirtualFile): MDXOnLoadResult {
   return {
-    name: 'mdxld',
-    setup(build) {
-      build.onResolve({ filter: /^https?:\/\// }, (args: ResolveArgs): OnResolveResult => ({
-        path: args.path,
-        namespace: 'http-url'
-      }))
+    contents: typeof virtualFile.contents === 'string'
+      ? virtualFile.contents
+      : formatJsonString(virtualFile.contents),
+    loader: virtualFile.loader,
+    watchFiles: virtualFile.watchFiles,
+    path: virtualFile.path,
+    namespace: virtualFile.namespace,
+    errors: virtualFile.errors
+  }
+}
 
-      build.onLoad({ filter: /\.mdx?$/, namespace: 'file' }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
-        try {
-          const contents = await fsPromises.readFile(args.path, 'utf8')
-          const virtualPath = `virtual:${args.path}`
+export const mdxld = (options?: MDXLDOptions): Plugin => ({
+  name: 'mdxld',
+  setup(build: PluginBuild) {
+    build.onResolve({ filter: /^https?:\/\// }, (args: ResolveArgs): OnResolveResult => ({
+      path: args.path,
+      namespace: 'http-url'
+    }))
 
-          const matches = contents.match(/^---\n([\s\S]*?)\n---/)
-          if (!matches || !matches[1].trim()) {
-            return {
-              contents,
-              loader: 'mdx' as MDXLoader
-            }
-          }
+    build.onLoad({ filter: /\.mdx?$/, namespace: 'file' }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
+      try {
+        const contents = await fsPromises.readFile(args.path, 'utf8')
+        const virtualPath = `virtual:${args.path}`
 
-          try {
-            const frontmatter = parseYamlContent(matches[1])
-
-            const processedYaml = processYamlLd(frontmatter, options?.preferDollarPrefix ?? false)
-
-            const processedContent = formatJsonString(processedYaml)
-
-            const virtualFile: MDXOnLoadResult = {
-              contents: processedContent,
-              loader: 'mdx' as MDXLoader,
-              watchFiles: [args.path]
-            }
-            virtualFs.set(virtualPath, virtualFile)
-
-            return {
-              path: virtualPath,
-              namespace: 'virtual',
-              watchFiles: [args.path]
-            }
-          } catch (yamlError) {
-            console.error('YAML processing error:', yamlError)
-            return {
-              errors: [{ text: 'Invalid YAML syntax' }],
-              loader: 'mdx' as MDXLoader
-            }
-          }
-        } catch (error) {
-          console.error('File read error:', error)
+        const matches = contents.match(/^---\n([\s\S]*?)\n---/)
+        if (!matches || !matches[1].trim()) {
           return {
-            errors: [{ text: 'Failed to read file' }],
-            loader: 'mdx' as MDXLoader
-          }
-        }
-      })
-
-      build.onLoad({ filter: /.*/, namespace: 'virtual' }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
-        const virtualFile = virtualFs.get(args.path)
-        if (!virtualFile) {
-          return {
-            errors: [{ text: `Virtual file not found: ${args.path}` }],
-            loader: 'mdx' as MDXLoader
-          }
-        }
-        return virtualFile
-      })
-
-      build.onLoad({ filter: /.*/, namespace: 'http-url' }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
-        const cachedFile = virtualFs.get(args.path)
-        if (cachedFile) {
-          return cachedFile
-        }
-
-        try {
-          const response = await fetch(args.path)
-          if (!response.ok) {
-            return {
-              errors: [{ text: `HTTP ${response.status}: ${response.statusText}` }],
-              loader: 'mdx' as MDXLoader
-            }
-          }
-
-          const contents = await response.text()
-          const virtualFile: MDXOnLoadResult = {
             contents,
+            loader: 'mdx' as MDXLoader
+          }
+        }
+
+        try {
+          const frontmatter = parseYamlContent(matches[1])
+
+          const processedYaml = processYamlLd(frontmatter, options?.preferDollarPrefix ?? false)
+
+          const virtualFile: VirtualFile = {
+            contents: processedYaml,
             loader: 'mdx' as MDXLoader,
             watchFiles: [args.path]
           }
-          virtualFs.set(args.path, virtualFile)
-          return virtualFile
-        } catch (error) {
+          virtualFs.set(virtualPath, virtualFile)
+
           return {
-            errors: [{ text: error instanceof Error ? error.message : 'Failed to fetch' }],
+            path: virtualPath,
+            namespace: 'virtual',
+            watchFiles: [args.path]
+          }
+        } catch (yamlError) {
+          console.error('YAML processing error:', yamlError)
+          return {
+            errors: [{ text: 'Invalid YAML syntax' }],
             loader: 'mdx' as MDXLoader
           }
         }
-      })
-    }
+      } catch (error) {
+        console.error('File read error:', error)
+        return {
+          errors: [{ text: 'Failed to read file' }],
+          loader: 'mdx' as MDXLoader
+        }
+      }
+    })
+
+    build.onLoad({ filter: /.*/, namespace: 'virtual' }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
+      const virtualFile = virtualFs.get(args.path)
+      if (!virtualFile) {
+        return {
+          errors: [{ text: `Virtual file not found: ${args.path}` }],
+          loader: 'mdx' as MDXLoader
+        }
+      }
+      return convertVirtualFileToMDXResult(virtualFile)
+    })
+
+    build.onLoad({ filter: /.*/, namespace: 'http-url' }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
+      const cachedFile = virtualFs.get(args.path)
+      if (cachedFile) {
+        return convertVirtualFileToMDXResult(cachedFile)
+      }
+
+      try {
+        const response = await fetch(args.path)
+        if (!response.ok) {
+          return {
+            errors: [{ text: `HTTP ${response.status}: ${response.statusText}` }],
+            loader: 'mdx' as MDXLoader
+          }
+        }
+
+        const contents = await response.text()
+        const virtualFile: VirtualFile = {
+          contents,
+          loader: 'mdx' as MDXLoader,
+          watchFiles: [args.path]
+        }
+        virtualFs.set(args.path, virtualFile)
+        return convertVirtualFileToMDXResult(virtualFile)
+      } catch (error) {
+        return {
+          errors: [{ text: error instanceof Error ? error.message : 'Failed to fetch' }],
+          loader: 'mdx' as MDXLoader
+        }
+      }
+    })
   }
-}
+})

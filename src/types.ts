@@ -3,8 +3,8 @@ import type { Pluggable } from 'unified'
 
 export type MDXLoader = Extract<Loader, 'mdx'>
 
-export interface VirtualFile extends OnLoadResult {
-  contents: string
+export interface VirtualFile extends Omit<OnLoadResult, 'contents'> {
+  contents: string | Record<string, unknown>
   loader: MDXLoader
   watchFiles?: string[]
   path?: string
