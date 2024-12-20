@@ -1,10 +1,10 @@
-/// <reference lib="dom" />
 import { Plugin, OnLoadResult, Loader } from 'esbuild'
 import { readFile } from 'node:fs/promises'
 import { parse } from 'yaml'
 import mdx from '@mdx-js/esbuild'
 import remarkMdxld from 'remark-mdxld'
 import type { Pluggable } from 'unified'
+import { fetch } from 'undici'
 
 const httpCache = new Map<string, { content: string; timestamp: number }>()
 const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
