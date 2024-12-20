@@ -85,17 +85,20 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
 
           const response = await fetch(args.path)
           if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+            return {
+              errors: [{ text: `HTTP ${response.status}: ${response.statusText}` }],
+              loader: 'mdx' as MDXLoader
+            }
           }
 
           const content = await response.text()
           httpCache.set(args.path, { content, timestamp: Date.now() })
-          const virtualFile = { contents: content, loader: 'mdx' as MDXLoader }
-          virtualFs.set(args.path, virtualFile)
-          return virtualFile
+          return { contents: content, loader: 'mdx' as MDXLoader }
         } catch (error) {
-          const errorMessage = error instanceof Error ? 'Invalid YAML syntax' : 'Cannot process MDX file with esbuild'
-          return { errors: [{ text: errorMessage }], loader: 'mdx' as MDXLoader }
+          return {
+            errors: [{ text: error instanceof Error ? error.message : 'Failed to fetch remote content' }],
+            loader: 'mdx' as MDXLoader
+          }
         }
       })
 
@@ -105,15 +108,29 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
           const source = await readFile(args.path, 'utf8')
           const { data: frontmatter, content } = matter(source)
 
+          if (!frontmatter || Object.keys(frontmatter).length === 0) {
+            return { contents: source, loader: 'mdx' as MDXLoader }
+          }
+
           // Process YAML-LD data
           const processedYaml = processYamlLd(frontmatter as Record<string, unknown>, Boolean(options.preferDollarPrefix))
           const enrichedContent = `---\n${yaml.dump(processedYaml)}\n---\n${content}`
 
-          virtualFs.set(args.path, { contents: enrichedContent, loader: 'mdx' as MDXLoader })
-          return { contents: enrichedContent, loader: 'mdx' as MDXLoader }
+          // Store in virtual filesystem for later reference
+          const virtualFile = { contents: enrichedContent, loader: 'mdx' as MDXLoader }
+          virtualFs.set(args.path, virtualFile)
+          return virtualFile
         } catch (error) {
-          const errorMessage = error instanceof Error ? 'Invalid YAML syntax' : 'Cannot process MDX file with esbuild'
-          return { errors: [{ text: errorMessage }], loader: 'mdx' as MDXLoader }
+          if (error instanceof yaml.YAMLException) {
+            return {
+              errors: [{ text: 'Invalid YAML syntax' }],
+              loader: 'mdx' as MDXLoader
+            }
+          }
+          return {
+            errors: [{ text: 'Cannot process MDX file with esbuild' }],
+            loader: 'mdx' as MDXLoader
+          }
         }
       })
 
