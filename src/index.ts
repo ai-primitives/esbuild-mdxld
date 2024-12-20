@@ -22,7 +22,7 @@ export interface MDXLDOptions {
   httpCacheTTL?: number
   httpTimeout?: number
   remarkPlugins?: Pluggable[]
-  rehypePlugins?: any[]
+  rehypePlugins?: Pluggable[]
 }
 
 const processYamlLd = (data: Record<string, unknown>, preferDollarPrefix: boolean): Record<string, unknown> => {
