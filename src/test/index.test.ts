@@ -39,10 +39,12 @@ describe('mdxld plugin', () => {
       const loadCallback = getHandlerForNamespace('file')
       expect(loadCallback).toBeDefined()
       const result = await loadCallback({ path: mdxPath, namespace: 'file' })
+      console.log('File handler result:', result)
       const virtualPath = result.path
 
       const virtualCallback = getHandlerForNamespace('virtual')
       expect(virtualCallback).toBeDefined()
+      console.log('Calling virtual handler with path:', virtualPath)
       const virtualResult = await virtualCallback({ path: virtualPath, namespace: 'virtual' })
 
       expect(virtualResult.contents).toBeDefined()
