@@ -1,3 +1,4 @@
+/// <reference lib="dom" />
 import { Plugin, OnLoadResult, Loader } from 'esbuild'
 import { readFile } from 'node:fs/promises'
 import mdx from '@mdx-js/esbuild'

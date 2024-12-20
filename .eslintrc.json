@@ -13,6 +13,12 @@
     "sourceType": "module"
   },
   "plugins": ["@typescript-eslint"],
+  "globals": {
+    "fetch": "readonly",
+    "Headers": "readonly",
+    "Request": "readonly",
+    "Response": "readonly"
+  },
   "rules": {
     "@typescript-eslint/no-unused-vars": "error",
     "@typescript-eslint/no-explicit-any": "error",
