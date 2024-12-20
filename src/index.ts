@@ -1,5 +1,3 @@
-/// <reference lib="dom" />
-/// <reference lib="dom.iterable" />
 /// <reference types="node" />
 
 import { Plugin, OnLoadResult } from 'esbuild'

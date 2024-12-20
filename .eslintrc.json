@@ -1,8 +1,7 @@
 {
   "env": {
     "es2022": true,
-    "node": true,
-    "browser": true
+    "node": true
   },
   "extends": [
     "eslint:recommended",
@@ -11,7 +10,7 @@
   ],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
-    "ecmaVersion": 2022,
+    "ecmaVersion": "latest",
     "sourceType": "module",
     "project": "./tsconfig.json"
   },
@@ -21,17 +20,14 @@
     "@typescript-eslint/no-explicit-any": "error",
     "no-undef": "error"
   },
-  "globals": {
-    "fetch": "readonly",
-    "Headers": "readonly",
-    "Request": "readonly",
-    "Response": "readonly"
-  },
   "overrides": [
     {
       "files": ["src/test/**/*.ts"],
       "rules": {
         "@typescript-eslint/no-explicit-any": "off"
+      },
+      "env": {
+        "node": true
       }
     }
   ]
