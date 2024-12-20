@@ -160,7 +160,11 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
             loader: 'mdx' as MDXLoader
           }
         }
-        return virtualFile
+        return {
+          contents: virtualFile.contents,
+          loader: virtualFile.loader,
+          watchFiles: virtualFile.watchFiles
+        }
       })
     }
   }

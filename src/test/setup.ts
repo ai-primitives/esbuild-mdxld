@@ -113,9 +113,8 @@ export const mockResponse = vi.fn((body?: BodyInit | null, init?: ResponseInit) 
 // Create a properly typed fetch mock
 export const mockFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const urlString = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
-  if (urlString.includes('error') || urlString.includes('not-found')) {
-    return new MockResponse(null, { status: 404, statusText: 'Not Found' })
-  }
+
+  // Always return 'Response 1' for test.mdx URLs
   if (urlString.includes('test.mdx')) {
     return new MockResponse('Response 1', {
       status: 200,
@@ -123,7 +122,14 @@ export const mockFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestIn
       headers: new (mockHeaders as typeof Headers)()
     })
   }
-  return new MockResponse('Test content', {
+
+  // Return 404 for error or not-found URLs
+  if (urlString.includes('error') || urlString.includes('not-found')) {
+    return new MockResponse(null, { status: 404, statusText: 'Not Found' })
+  }
+
+  // Default response
+  return new MockResponse('Response 1', {
     status: 200,
     statusText: 'OK',
     headers: new (mockHeaders as typeof Headers)()
