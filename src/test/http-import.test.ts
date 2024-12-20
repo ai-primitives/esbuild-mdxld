@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mdxld } from '../index'
-import { createBuildStub } from './utils'
+import { createBuildStub, MockWithHandlers } from './utils'
 import { mockFetch } from './setup'
-import type { PluginBuild } from 'esbuild'
+import type { PluginBuild, OnLoadArgs, OnLoadResult, OnResolveArgs } from 'esbuild'
+
+type HttpHandlerArgs = OnLoadArgs & OnResolveArgs & { resolveDir: string }
 
 describe('mdxld plugin - HTTP imports', () => {
   let plugin: ReturnType<typeof mdxld>
@@ -20,13 +22,26 @@ describe('mdxld plugin - HTTP imports', () => {
   })
 
   const getHandlerForNamespace = (namespace: string) => {
-    return (build.onLoad as any).handlers?.get(namespace)
+    return (build.onLoad as MockWithHandlers<typeof build.onLoad>).handlers?.get(namespace)
   }
 
   it('should resolve HTTP imports', async () => {
     const callback = getHandlerForNamespace('http-url')
     expect(callback).toBeDefined()
-    const result = await callback({ path: 'https://example.com/test.mdx', namespace: 'http-url' })
+    if (!callback) throw new Error('HTTP URL handler not found')
+
+    const args: HttpHandlerArgs = {
+      path: 'https://example.com/test.mdx',
+      namespace: 'http-url',
+      suffix: '',
+      pluginData: null,
+      with: {},
+      resolveDir: '/',
+      kind: 'entry-point',
+      importer: ''
+    }
+
+    const result = await callback(args) as OnLoadResult
     expect(result.contents).toBe('# Test Content')
     expect(result.loader).toBe('mdx')
     expect(mockFetch).toHaveBeenCalledWith('https://example.com/test.mdx')
@@ -35,9 +50,22 @@ describe('mdxld plugin - HTTP imports', () => {
   it('should handle HTTP import errors', async () => {
     const callback = getHandlerForNamespace('http-url')
     expect(callback).toBeDefined()
-    const result = await callback({ path: 'https://example.com/error.mdx', namespace: 'http-url' })
+    if (!callback) throw new Error('HTTP URL handler not found')
+
+    const args: HttpHandlerArgs = {
+      path: 'https://example.com/error.mdx',
+      namespace: 'http-url',
+      suffix: '',
+      pluginData: null,
+      with: {},
+      resolveDir: '/',
+      kind: 'entry-point',
+      importer: ''
+    }
+
+    const result = await callback(args) as OnLoadResult
     expect(result.errors).toBeDefined()
-    expect(result.errors[0].text).toBe('HTTP 404: Not Found')
+    expect(result.errors![0].text).toBe('HTTP 404: Not Found')
     expect(result.loader).toBe('mdx')
     expect(mockFetch).toHaveBeenCalledWith('https://example.com/error.mdx')
   })
@@ -45,19 +73,29 @@ describe('mdxld plugin - HTTP imports', () => {
   it('should cache HTTP responses', async () => {
     const callback = getHandlerForNamespace('http-url')
     expect(callback).toBeDefined()
-    const testUrl = 'https://example.com/cached.mdx'
+    if (!callback) throw new Error('HTTP URL handler not found')
+
+    const args: HttpHandlerArgs = {
+      path: 'https://example.com/cached.mdx',
+      namespace: 'http-url',
+      suffix: '',
+      pluginData: null,
+      with: {},
+      resolveDir: '/',
+      kind: 'entry-point',
+      importer: ''
+    }
 
     // First request
-    const result1 = await callback({ path: testUrl, namespace: 'http-url' })
+    const result1 = await callback(args) as OnLoadResult
     expect(result1.contents).toBe('# Cached Content')
     expect(result1.loader).toBe('mdx')
 
     // Second request should use cache
-    const result2 = await callback({ path: testUrl, namespace: 'http-url' })
+    const result2 = await callback(args) as OnLoadResult
     expect(result2.contents).toBe('# Cached Content')
     expect(result2.loader).toBe('mdx')
 
     // Fetch should only be called once due to caching
     expect(mockFetch).toHaveBeenCalledTimes(1)
   })
-})

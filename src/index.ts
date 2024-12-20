@@ -1,20 +1,20 @@
 /// <reference types="node" />
+/// <reference lib="dom" />
+/// <reference lib="dom.iterable" />
 
 import { Plugin, PluginBuild } from 'esbuild'
 import { promises as fsPromises } from 'fs'
-import mdx from '@mdx-js/esbuild'
-import remarkMdxld from 'remark-mdxld'
-import matter from 'gray-matter'
 import yaml from 'js-yaml'
 import { MDXLoader, VirtualFile, LoadArgs, MDXOnLoadResult, MDXLDOptions, ResolveArgs, OnResolveResult } from './types'
+
+// Use native fetch in Node.js 18+ environments
+const fetchImpl = globalThis.fetch.bind(globalThis)
 
 // Virtual file system for processed content - keep outside plugin function to persist across instances
 const virtualFs = new Map<string, VirtualFile>()
 
 function preprocessYaml(content: string): string {
-  let processed = content
-    .replace(/^(@\w+):/gm, '__at__$1:')
-    .replace(/(\s+)(@\w+):/g, '$1__at__$2:')
+  let processed = content.replace(/^(@\w+):/gm, '__at__$1:').replace(/(\s+)(@\w+):/g, '$1__at__$2:')
 
   const lines = processed.split('\n')
   const result = []
@@ -40,7 +40,7 @@ function preprocessYaml(content: string): string {
 
 function postprocessYaml(data: unknown): unknown {
   if (Array.isArray(data)) {
-    return data.map(item => postprocessYaml(item))
+    return data.map((item) => postprocessYaml(item))
   }
 
   if (typeof data !== 'object' || data === null) {
@@ -72,7 +72,7 @@ function parseYamlContent(content: string): Record<string, unknown> {
 function processYamlLd(data: Record<string, unknown>, preferDollarPrefix: boolean): Record<string, unknown> {
   function processValue(value: unknown): unknown {
     if (Array.isArray(value)) {
-      return value.map(item => {
+      return value.map((item) => {
         if (typeof item === 'object' && item !== null) {
           return processObject(item as Record<string, unknown>)
         }
@@ -103,10 +103,7 @@ function processYamlLd(data: Record<string, unknown>, preferDollarPrefix: boolea
 function formatJsonString(obj: Record<string, unknown>): string {
   function replacer(_: string, value: unknown): unknown {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
-      return Object.fromEntries(
-        Object.entries(value as Record<string, unknown>)
-          .sort(([a], [b]) => a.localeCompare(b))
-      )
+      return Object.fromEntries(Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)))
     }
     return value
   }
@@ -119,35 +116,32 @@ function formatJsonString(obj: Record<string, unknown>): string {
     .replace(/,\n\s+"/g, ', "')
     .replace(/\[\n\s+"/g, '["')
     .replace(/"\n\s+\]/g, '"]')
-    .replace(/\[(.*?)\]/g, (match, contents) =>
-      contents.includes('{')
-        ? match
-        : match.replace(/",\s+"/g, '", "')
-    )
+    .replace(/\[(.*?)\]/g, (match, contents) => (contents.includes('{') ? match : match.replace(/",\s+"/g, '", "')))
 
   return jsonString
 }
 
 function convertVirtualFileToMDXResult(virtualFile: VirtualFile): MDXOnLoadResult {
   return {
-    contents: typeof virtualFile.contents === 'string'
-      ? virtualFile.contents
-      : formatJsonString(virtualFile.contents),
+    contents: typeof virtualFile.contents === 'string' ? virtualFile.contents : formatJsonString(virtualFile.contents),
     loader: virtualFile.loader,
     watchFiles: virtualFile.watchFiles,
     path: virtualFile.path,
     namespace: virtualFile.namespace,
-    errors: virtualFile.errors
+    errors: virtualFile.errors,
   }
 }
 
 export const mdxld = (options?: MDXLDOptions): Plugin => ({
   name: 'mdxld',
   setup(build: PluginBuild) {
-    build.onResolve({ filter: /^https?:\/\// }, (args: ResolveArgs): OnResolveResult => ({
-      path: args.path,
-      namespace: 'http-url'
-    }))
+    build.onResolve(
+      { filter: /^https?:\/\// },
+      (args: ResolveArgs): OnResolveResult => ({
+        path: args.path,
+        namespace: 'http-url',
+      }),
+    )
 
     build.onLoad({ filter: /\.mdx?$/, namespace: 'file' }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
       try {
@@ -158,7 +152,7 @@ export const mdxld = (options?: MDXLDOptions): Plugin => ({
         if (!matches || !matches[1].trim()) {
           return {
             contents,
-            loader: 'mdx' as MDXLoader
+            loader: 'mdx' as MDXLoader,
           }
         }
 
@@ -170,27 +164,27 @@ export const mdxld = (options?: MDXLDOptions): Plugin => ({
           const virtualFile: VirtualFile = {
             contents: processedYaml,
             loader: 'mdx' as MDXLoader,
-            watchFiles: [args.path]
+            watchFiles: [args.path],
           }
           virtualFs.set(virtualPath, virtualFile)
 
           return {
             path: virtualPath,
             namespace: 'virtual',
-            watchFiles: [args.path]
+            watchFiles: [args.path],
           }
         } catch (yamlError) {
           console.error('YAML processing error:', yamlError)
           return {
             errors: [{ text: 'Invalid YAML syntax' }],
-            loader: 'mdx' as MDXLoader
+            loader: 'mdx' as MDXLoader,
           }
         }
       } catch (error) {
         console.error('File read error:', error)
         return {
           errors: [{ text: 'Failed to read file' }],
-          loader: 'mdx' as MDXLoader
+          loader: 'mdx' as MDXLoader,
         }
       }
     })
@@ -200,7 +194,7 @@ export const mdxld = (options?: MDXLDOptions): Plugin => ({
       if (!virtualFile) {
         return {
           errors: [{ text: `Virtual file not found: ${args.path}` }],
-          loader: 'mdx' as MDXLoader
+          loader: 'mdx' as MDXLoader,
         }
       }
       return convertVirtualFileToMDXResult(virtualFile)
@@ -213,11 +207,11 @@ export const mdxld = (options?: MDXLDOptions): Plugin => ({
       }
 
       try {
-        const response = await fetch(args.path)
+        const response = await fetchImpl(args.path)
         if (!response.ok) {
           return {
             errors: [{ text: `HTTP ${response.status}: ${response.statusText}` }],
-            loader: 'mdx' as MDXLoader
+            loader: 'mdx' as MDXLoader,
           }
         }
 
@@ -225,16 +219,16 @@ export const mdxld = (options?: MDXLDOptions): Plugin => ({
         const virtualFile: VirtualFile = {
           contents,
           loader: 'mdx' as MDXLoader,
-          watchFiles: [args.path]
+          watchFiles: [args.path],
         }
         virtualFs.set(args.path, virtualFile)
         return convertVirtualFileToMDXResult(virtualFile)
       } catch (error) {
         return {
           errors: [{ text: error instanceof Error ? error.message : 'Failed to fetch' }],
-          loader: 'mdx' as MDXLoader
+          loader: 'mdx' as MDXLoader,
         }
       }
     })
-  }
+  },
 })

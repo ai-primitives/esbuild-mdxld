@@ -3,7 +3,7 @@ import { Plugin } from 'esbuild'
 import { mdxld } from '../index'
 import * as fs from 'node:fs/promises'
 import path from 'node:path'
-import { createBuildStub, setupTestPlugin } from './utils'
+import { createBuildStub, setupTestPlugin, MockWithHandlers } from './utils'
 
 vi.mock('node:fs/promises')
 
@@ -21,7 +21,7 @@ describe('mdxld plugin', () => {
   })
 
   const getHandlerForNamespace = (namespace: string) => {
-    return (build.onLoad as any).handlers?.get(namespace)
+    return (build.onLoad as MockWithHandlers<typeof build.onLoad>).handlers?.get(namespace)
   }
 
   it('should create a plugin with default options', () => {
@@ -38,7 +38,13 @@ describe('mdxld plugin', () => {
 
       const loadCallback = getHandlerForNamespace('file')
       expect(loadCallback).toBeDefined()
-      const result = await loadCallback({ path: mdxPath, namespace: 'file' })
+      const result = await loadCallback({
+        path: mdxPath,
+        namespace: 'file',
+        suffix: '',
+        pluginData: null,
+        with: {}
+      })
       console.log('File handler result:', result)
       const virtualPath = result.path
 
@@ -84,7 +90,13 @@ describe('mdxld plugin', () => {
 
       const loadCallback = getHandlerForNamespace('file')
       expect(loadCallback).toBeDefined()
-      const result = await loadCallback({ path: mdxPath, namespace: 'file' })
+      const result = await loadCallback({
+        path: mdxPath,
+        namespace: 'file',
+        suffix: '',
+        pluginData: null,
+        with: {}
+      })
       const virtualPath = result.path
 
       const virtualCallback = getHandlerForNamespace('virtual')
@@ -108,7 +120,13 @@ describe('mdxld plugin', () => {
 
       const loadCallback = getHandlerForNamespace('file')
       expect(loadCallback).toBeDefined()
-      const result = await loadCallback({ path: mdxPath, namespace: 'file' })
+      const result = await loadCallback({
+        path: mdxPath,
+        namespace: 'file',
+        suffix: '',
+        pluginData: null,
+        with: {}
+      })
 
       expect(result.errors).toBeDefined()
       expect(result.errors[0].text).toBe('Invalid YAML syntax')
@@ -122,7 +140,13 @@ describe('mdxld plugin', () => {
 
       const loadCallback = getHandlerForNamespace('file')
       expect(loadCallback).toBeDefined()
-      const result = await loadCallback({ path: mdxPath, namespace: 'file' })
+      const result = await loadCallback({
+        path: mdxPath,
+        namespace: 'file',
+        suffix: '',
+        pluginData: null,
+        with: {}
+      })
       const virtualPath = result.path
 
       const virtualCallback = getHandlerForNamespace('virtual')
@@ -140,7 +164,13 @@ describe('mdxld plugin', () => {
 
       const loadCallback = getHandlerForNamespace('file')
       expect(loadCallback).toBeDefined()
-      const result = await loadCallback({ path: mdxPath, namespace: 'file' })
+      const result = await loadCallback({
+        path: mdxPath,
+        namespace: 'file',
+        suffix: '',
+        pluginData: null,
+        with: {}
+      })
       const virtualPath = result.path
 
       const virtualCallback = getHandlerForNamespace('virtual')

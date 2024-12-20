@@ -1,16 +1,18 @@
 import { Plugin, PluginBuild, OnLoadArgs, OnLoadResult, OnResolveArgs, OnResolveResult } from 'esbuild'
 import { vi, Mock } from 'vitest'
 
-type HandlerMap = Map<string, (args: any) => Promise<any>>
+type LoadCallback = (args: OnLoadArgs) => Promise<OnLoadResult>
+type ResolveCallback = (args: OnResolveArgs) => Promise<OnResolveResult>
+type HandlerMap = Map<string, LoadCallback | ResolveCallback>
 
-interface MockWithHandlers<T extends (...args: any[]) => any> extends Mock<T> {
+export interface MockWithHandlers<T extends (...args: Parameters<T>) => ReturnType<T>> extends Mock<T> {
   handlers?: HandlerMap
 }
 
 // Minimal interface for test build object
 interface BuildStub {
-  onLoad: MockWithHandlers<(options: { filter: RegExp; namespace?: string }, callback: (args: OnLoadArgs) => Promise<OnLoadResult>) => void>
-  onResolve: MockWithHandlers<(options: { filter: RegExp }, callback: (args: OnResolveArgs) => Promise<OnResolveResult>) => void>
+  onLoad: MockWithHandlers<(options: { filter: RegExp; namespace?: string }, callback: LoadCallback) => void>
+  onResolve: MockWithHandlers<(options: { filter: RegExp }, callback: ResolveCallback) => void>
   initialOptions: {
     fs?: {
       readFile: ReturnType<typeof vi.fn>
