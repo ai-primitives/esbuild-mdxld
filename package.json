@@ -13,6 +13,9 @@
   "files": [
     "dist"
   ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
@@ -41,6 +44,8 @@
   },
   "dependencies": {
     "@mdx-js/esbuild": "^3.0.0",
+    "gray-matter": "^4.0.3",
+    "js-yaml": "^4.1.0",
     "mdxld": "^0.1.0",
     "remark-mdxld": "^0.1.0"
   },
@@ -50,8 +55,8 @@
     "@semantic-release/github": "^11.0.1",
     "@semantic-release/npm": "^12.0.1",
     "@semantic-release/release-notes-generator": "^14.0.1",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.10.2",
-    "@types/yaml": "^1.9.7",
     "@typescript-eslint/eslint-plugin": "^8.18.0",
     "@typescript-eslint/parser": "^8.18.0",
     "esbuild": "^0.24.1",
@@ -59,9 +64,7 @@
     "prettier": "^3.4.2",
     "semantic-release": "^24.2.0",
     "typescript": "^5.7.2",
-    "undici": "^7.2.0",
     "unified": "^11.0.5",
-    "vitest": "^2.1.8",
-    "yaml": "^2.6.1"
+    "vitest": "^2.1.8"
   }
 }

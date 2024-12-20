@@ -1,14 +1,18 @@
 import { Plugin, OnLoadResult, Loader } from 'esbuild'
-import { readFile } from 'node:fs/promises'
-import { parse } from 'yaml'
+import { promises as fs } from 'fs'
 import mdx from '@mdx-js/esbuild'
 import remarkMdxld from 'remark-mdxld'
+import matter from 'gray-matter'
+import yaml from 'js-yaml'
 import type { Pluggable } from 'unified'
-import { fetch } from 'undici'
 
 // Define types for virtual file system
-type MDXLoader = Extract<Loader, 'mdx'>
-type VirtualFile = { contents: string; loader: MDXLoader }
+type MDXLoader = Extract<Loader, 'mdx' | 'js'>
+interface VirtualFile {
+  contents: string
+  loader: MDXLoader
+}
+
 const httpCache = new Map<string, { content: string; timestamp: number }>()
 const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
@@ -86,7 +90,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
           virtualFs.set(args.path, { contents: content, loader: 'mdx' as MDXLoader })
           return { contents: content, loader: 'mdx' as MDXLoader }
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'HTTP 404: Not Found'
+          const errorMessage = error instanceof Error ? error.message : 'Invalid YAML syntax'
           return { errors: [{ text: errorMessage }], loader: 'mdx' as MDXLoader }
         }
       })
@@ -94,44 +98,28 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
       // Handle MDX files
       build.onLoad({ filter: /\.mdx?$/ }, async (args): Promise<OnLoadResult> => {
         try {
-          const source = await readFile(args.path, 'utf8')
-          const match = source.match(/^---\n([\s\S]*?)\n---/)
+          const source = await fs.promises.readFile(args.path, 'utf8')
+          const { data: frontmatter, content } = matter(source)
 
-          if (!match || !match[1].trim()) {
-            virtualFs.set(args.path, { contents: source, loader: 'mdx' as MDXLoader })
-            return { contents: source, loader: 'mdx' as MDXLoader }
-          }
+          // Process YAML-LD data
+          const processedYaml = processYamlLd(frontmatter as Record<string, unknown>, Boolean(options.preferDollarPrefix))
+          const enrichedContent = `---\n${yaml.dump(processedYaml)}\n---\n${content}`
 
-          try {
-            const yamlData = parse(match[1])
-            if (typeof yamlData !== 'object' || yamlData === null) {
-              throw new Error('Invalid YAML: expected an object')
-            }
-
-            const processedYaml = processYamlLd(yamlData as Record<string, unknown>, Boolean(options.preferDollarPrefix))
-            const yamlString = JSON.stringify(processedYaml, null, 2)
-            const contentAfterFrontmatter = source.slice(match[0].length).trim()
-            const processedContent = `---\n${yamlString}\n---\n\n${contentAfterFrontmatter}`
-
-            virtualFs.set(args.path, { contents: processedContent, loader: 'mdx' as MDXLoader })
-            return { contents: processedContent, loader: 'mdx' as MDXLoader }
-          } catch (error) {
-            console.error('Failed to process YAML:', error)
-            return { errors: [{ text: 'Invalid YAML syntax' }], loader: 'mdx' as MDXLoader }
-          }
+          virtualFs.set(args.path, { contents: enrichedContent, loader: 'mdx' as MDXLoader })
+          return { contents: enrichedContent, loader: 'mdx' as MDXLoader }
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-          return { errors: [{ text: `Cannot process MDX file: ${errorMessage}` }], loader: 'mdx' as MDXLoader }
+          const errorMessage = error instanceof Error ? error.message : 'Invalid YAML syntax'
+          return { errors: [{ text: errorMessage }], loader: 'mdx' as MDXLoader }
         }
       })
 
       // Handle virtual files
-      build.onLoad({ filter: /.*/, namespace: 'virtual' }, (args): OnLoadResult => {
-        const file = virtualFs.get(args.path)
-        if (!file) {
-          return { errors: [{ text: `Virtual file not found: ${args.path}` }], loader: 'mdx' as MDXLoader }
+      build.onLoad({ filter: /.*/, namespace: 'virtual' }, async (args): Promise<OnLoadResult> => {
+        const virtualFile = virtualFs.get(args.path)
+        if (!virtualFile) {
+          return { errors: [{ text: 'Virtual file not found' }], loader: 'mdx' as MDXLoader }
         }
-        return { contents: file.contents, loader: file.loader }
+        return virtualFile
       })
     },
   }
