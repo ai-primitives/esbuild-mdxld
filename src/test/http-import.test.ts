@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mdxld } from '../index'
 import { createBuildStub } from './utils'
-import { mockFetch, MockResponse } from './setup'
+import { mockFetch } from './setup'
 import type { PluginBuild } from 'esbuild'
 
 describe('mdxld plugin - HTTP imports', () => {
@@ -21,42 +21,26 @@ describe('mdxld plugin - HTTP imports', () => {
 
   it('should resolve HTTP imports', async () => {
     const { onLoad } = build
-    const callback = onLoad.mock.calls[1][1]
-
-    vi.mocked(mockFetch).mockImplementationOnce(async () => {
-      return new MockResponse('Test content', {
-        status: 200,
-        statusText: 'OK'
-      })
-    })
-
+    const callback = onLoad.mock.calls[2][1]
     const result = await callback({ path: 'https://example.com/test.mdx', namespace: 'http-url' })
-    expect(result.contents).toBe('Test content')
+    expect(result.contents).toBe('Response 1')
     expect(result.loader).toBe('mdx')
-    expect(mockFetch).toHaveBeenCalled()
+    expect(mockFetch).toHaveBeenCalledWith('https://example.com/test.mdx')
   })
 
   it('should handle HTTP import errors', async () => {
     const { onLoad } = build
-    const callback = onLoad.mock.calls[1][1]
-
-    vi.mocked(mockFetch).mockImplementationOnce(async () => {
-      return new MockResponse(null, {
-        status: 404,
-        statusText: 'Not Found'
-      })
-    })
-
-    const result = await callback({ path: 'https://example.com/not-found.mdx', namespace: 'http-url' })
+    const callback = onLoad.mock.calls[2][1]
+    const result = await callback({ path: 'https://example.com/error.mdx', namespace: 'http-url' })
     expect(result.errors).toBeDefined()
     expect(result.errors[0].text).toBe('HTTP 404: Not Found')
     expect(result.loader).toBe('mdx')
-    expect(mockFetch).toHaveBeenCalled()
+    expect(mockFetch).toHaveBeenCalledWith('https://example.com/error.mdx')
   })
 
   it('should cache HTTP responses', async () => {
     const { onLoad } = build
-    const callback = onLoad.mock.calls[1][1]
+    const callback = onLoad.mock.calls[2][1]
     const testUrl = 'https://example.com/test.mdx'
 
     // First request

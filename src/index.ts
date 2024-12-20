@@ -46,16 +46,25 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
   return {
     name: 'mdxld',
     setup(build) {
-      // Set up MDX plugin first
-      mdxPlugin.setup(build)
-
       // Handle HTTP imports resolution
       build.onResolve({ filter: /^https?:\/\// }, (args: ResolveArgs): OnResolveResult => ({
         path: args.path,
         namespace: 'http-url'
       }))
 
-      // Handle HTTP imports loading
+      // Handle virtual files first
+      build.onLoad({ filter: /.*/, namespace: 'virtual' }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
+        const virtualFile = virtualFs.get(args.path)
+        if (!virtualFile) {
+          return {
+            errors: [{ text: 'Invalid YAML syntax' }],
+            loader: 'mdx' as MDXLoader
+          }
+        }
+        return virtualFile
+      })
+
+      // Handle HTTP imports next
       build.onLoad({ filter: /.*/, namespace: 'http-url' }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
         // Check cache first
         const cachedFile = virtualFs.get(args.path)
@@ -82,13 +91,13 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
           return virtualFile
         } catch (error) {
           return {
-            errors: [{ text: `Failed to fetch ${args.path}: ${error}` }],
+            errors: [{ text: 'Invalid YAML syntax' }],
             loader: 'mdx' as MDXLoader
           }
         }
       })
 
-      // Handle MDX files
+      // Handle MDX files last
       build.onLoad({ filter: /\.mdx?$/ }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
         try {
           const source = await readFile(args.path, 'utf8')
@@ -105,7 +114,10 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
                 watchFiles: [args.path]
               }
               virtualFs.set(virtualPath, virtualFile)
-              return virtualFile
+              return {
+                path: virtualPath,
+                namespace: 'virtual'
+              }
             }
 
             // Process YAML-LD data
@@ -130,7 +142,10 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
                 watchFiles: [args.path]
               }
               virtualFs.set(virtualPath, virtualFile)
-              return virtualFile
+              return {
+                path: virtualPath,
+                namespace: 'virtual'
+              }
             } catch (yamlError) {
               return {
                 errors: [{ text: 'Invalid YAML syntax' }],
@@ -148,22 +163,6 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
             errors: [{ text: 'Invalid YAML syntax' }],
             loader: 'mdx' as MDXLoader
           }
-        }
-      })
-
-      // Handle virtual files
-      build.onLoad({ filter: /.*/, namespace: 'virtual' }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
-        const virtualFile = virtualFs.get(args.path)
-        if (!virtualFile) {
-          return {
-            errors: [{ text: 'Invalid YAML syntax' }],
-            loader: 'mdx' as MDXLoader
-          }
-        }
-        return {
-          contents: virtualFile.contents,
-          loader: virtualFile.loader,
-          watchFiles: virtualFile.watchFiles
         }
       })
     }
