@@ -1,7 +1,7 @@
 {
   "env": {
     "browser": false,
-    "es2021": true,
+    "es2022": true,
     "node": true
   },
   "extends": [
@@ -10,14 +10,11 @@
   ],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
-    "ecmaVersion": "latest",
+    "ecmaVersion": 2022,
     "sourceType": "module"
   },
   "plugins": ["@typescript-eslint"],
   "rules": {
     "no-undef": "error"
-  },
-  "globals": {
-    "fetch": "readonly"
   }
 }
