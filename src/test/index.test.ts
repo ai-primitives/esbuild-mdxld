@@ -1,17 +1,152 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mdxld } from '../index'
+import type { Plugin } from 'esbuild'
+import fs from 'node:fs/promises'
 
 describe('mdxld plugin', () => {
+  let plugin: Plugin
+  let build: any
+
+  beforeEach(() => {
+    plugin = mdxld({
+      validateRequired: true
+    })
+    build = {
+      onLoad: vi.fn(),
+      onResolve: vi.fn(),
+      initialOptions: {}
+    }
+    plugin.setup(build)
+  })
+
   it('should create a plugin with default options', () => {
     const plugin = mdxld()
     expect(plugin.name).toBe('mdxld')
+    expect(plugin.setup).toBeInstanceOf(Function)
   })
 
-  it('should pass options to remark-mdxld', () => {
-    const plugin = mdxld({
-      validateRequired: true,
-      preferDollarPrefix: true
+  describe('YAML-LD parsing with @ prefix', () => {
+    it('should process basic string values', async () => {
+      const mdxContent = `---
+@context: https://schema.org
+@type: BlogPosting
+@id: https://example.com/post-1
+title: Test Post
+---
+# Content
+`
+      const loadCallback = build.onLoad.mock.calls[0][1]
+      const result = await loadCallback({ path: 'test.mdx' })
+      expect(result.contents).toContain('"context": "https://schema.org"')
+      expect(result.contents).toContain('"type": "BlogPosting"')
     })
-    expect(plugin.name).toBe('mdxld')
+
+    it('should process numeric values', async () => {
+      const mdxContent = `---
+@context: https://schema.org
+@type: Product
+price: 99.99
+rating:
+  @type: Rating
+  ratingValue: 4.5
+  reviewCount: 100
+---
+# Content
+`
+      const loadCallback = build.onLoad.mock.calls[0][1]
+      const result = await loadCallback({ path: 'test.mdx' })
+      expect(result.contents).toContain('"ratingValue": 4.5')
+      expect(result.contents).toContain('"reviewCount": 100')
+    })
+
+    it('should process array values', async () => {
+      const mdxContent = `---
+@context: https://schema.org
+@type: BlogPosting
+keywords:
+  - javascript
+  - typescript
+  - mdx
+author:
+  @type: Person
+  name: John Doe
+  sameAs:
+    - https://twitter.com/johndoe
+    - https://github.com/johndoe
+---
+# Content
+`
+      const loadCallback = build.onLoad.mock.calls[0][1]
+      const result = await loadCallback({ path: 'test.mdx' })
+      expect(result.contents).toContain('"keywords":')
+      expect(result.contents).toContain('"javascript"')
+      expect(result.contents).toContain('"sameAs":')
+    })
+  })
+
+  describe('YAML-LD parsing with $ prefix', () => {
+    it('should process nested objects with $ prefix', async () => {
+      const mdxContent = `---
+$context: https://schema.org
+$type: Article
+author:
+  $type: Person
+  name: Jane Smith
+  address:
+    $type: PostalAddress
+    streetAddress: 123 Main St
+    addressLocality: Springfield
+---
+# Content
+`
+      const loadCallback = build.onLoad.mock.calls[0][1]
+      const result = await loadCallback({ path: 'test.mdx' })
+      expect(result.contents).toContain('"type": "Person"')
+      expect(result.contents).toContain('"type": "PostalAddress"')
+      expect(result.contents).toContain('"streetAddress"')
+    })
+
+    it('should handle mixed $ and regular properties', async () => {
+      const mdxContent = `---
+$context: https://schema.org
+$type: Product
+name: Cool Product
+offers:
+  $type: Offer
+  price: 29.99
+  priceCurrency: USD
+  availability: InStock
+---
+# Content
+`
+      const loadCallback = build.onLoad.mock.calls[0][1]
+      const result = await loadCallback({ path: 'test.mdx' })
+      expect(result.contents).toContain('"type": "Offer"')
+      expect(result.contents).toContain('"price": 29.99')
+      expect(result.contents).toContain('"availability": "InStock"')
+    })
+  })
+
+  describe('Error handling', () => {
+    it('should handle invalid YAML syntax', async () => {
+      const mdxContent = `---
+@context: https://schema.org
+@type: [Invalid[Syntax
+---
+# Content
+`
+      const loadCallback = build.onLoad.mock.calls[0][1]
+      const result = await loadCallback({ path: 'test.mdx' })
+      expect(result.errors).toBeDefined()
+      expect(result.errors[0].text).toContain('Error processing MDX file')
+    })
+
+    it('should handle missing frontmatter', async () => {
+      const mdxContent = '# Just content without frontmatter'
+      const loadCallback = build.onLoad.mock.calls[0][1]
+      const result = await loadCallback({ path: 'test.mdx' })
+      expect(result.contents).toBe(mdxContent)
+      expect(result.loader).toBe('mdx')
+    })
   })
 })
