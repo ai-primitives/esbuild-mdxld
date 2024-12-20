@@ -1,5 +1,7 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
+/// <reference types="node" />
+
 import { Plugin, OnLoadResult, Loader } from 'esbuild'
 import { readFile } from 'node:fs/promises'
 import mdx from '@mdx-js/esbuild'
@@ -87,7 +89,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
           if (!response.ok) {
             return {
               errors: [{ text: `HTTP ${response.status}: ${response.statusText}` }],
-              loader: 'mdx' as MDXLoader
+              loader: 'mdx' as MDXLoader,
             }
           }
 
@@ -97,7 +99,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
         } catch (error) {
           return {
             errors: [{ text: error instanceof Error ? error.message : 'Failed to fetch remote content' }],
-            loader: 'mdx' as MDXLoader
+            loader: 'mdx' as MDXLoader,
           }
         }
       })
@@ -124,12 +126,12 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
           if (error instanceof yaml.YAMLException) {
             return {
               errors: [{ text: 'Invalid YAML syntax' }],
-              loader: 'mdx' as MDXLoader
+              loader: 'mdx' as MDXLoader,
             }
           }
           return {
             errors: [{ text: 'Cannot process MDX file with esbuild' }],
-            loader: 'mdx' as MDXLoader
+            loader: 'mdx' as MDXLoader,
           }
         }
       })
