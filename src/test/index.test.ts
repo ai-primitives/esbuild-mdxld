@@ -20,6 +20,10 @@ describe('mdxld plugin', () => {
     build = setupTestPlugin(plugin)
   })
 
+  const getHandlerForNamespace = (namespace: string) => {
+    return (build.onLoad as any).handlers?.get(namespace)
+  }
+
   it('should create a plugin with default options', () => {
     expect(plugin.name).toBe('mdxld')
     expect(build.onResolve).toHaveBeenCalled()
@@ -32,11 +36,13 @@ describe('mdxld plugin', () => {
       const content = await fs.readFile(mdxPath, 'utf8')
       vi.mocked(fs.readFile).mockResolvedValue(content)
 
-      const loadCallback = build.onLoad.mock.calls[0][1]
+      const loadCallback = getHandlerForNamespace('file')
+      expect(loadCallback).toBeDefined()
       const result = await loadCallback({ path: mdxPath, namespace: 'file' })
       const virtualPath = result.path
 
-      const virtualCallback = build.onLoad.mock.calls[2][1]
+      const virtualCallback = getHandlerForNamespace('virtual')
+      expect(virtualCallback).toBeDefined()
       const virtualResult = await virtualCallback({ path: virtualPath, namespace: 'virtual' })
 
       expect(virtualResult.contents).toBeDefined()
@@ -51,11 +57,13 @@ describe('mdxld plugin', () => {
       const content = await fs.readFile(mdxPath, 'utf8')
       vi.mocked(fs.readFile).mockResolvedValue(content)
 
-      const loadCallback = build.onLoad.mock.calls[0][1]
+      const loadCallback = getHandlerForNamespace('file')
+      expect(loadCallback).toBeDefined()
       const result = await loadCallback({ path: mdxPath, namespace: 'file' })
       const virtualPath = result.path
 
-      const virtualCallback = build.onLoad.mock.calls[2][1]
+      const virtualCallback = getHandlerForNamespace('virtual')
+      expect(virtualCallback).toBeDefined()
       const virtualResult = await virtualCallback({ path: virtualPath, namespace: 'virtual' })
 
       expect(virtualResult.contents).toBeDefined()
@@ -72,11 +80,13 @@ describe('mdxld plugin', () => {
       const content = await fs.readFile(mdxPath, 'utf8')
       vi.mocked(fs.readFile).mockResolvedValue(content)
 
-      const loadCallback = build.onLoad.mock.calls[0][1]
+      const loadCallback = getHandlerForNamespace('file')
+      expect(loadCallback).toBeDefined()
       const result = await loadCallback({ path: mdxPath, namespace: 'file' })
       const virtualPath = result.path
 
-      const virtualCallback = build.onLoad.mock.calls[2][1]
+      const virtualCallback = getHandlerForNamespace('virtual')
+      expect(virtualCallback).toBeDefined()
       const virtualResult = await virtualCallback({ path: virtualPath, namespace: 'virtual' })
 
       expect(virtualResult.contents).toBeDefined()
@@ -94,7 +104,8 @@ describe('mdxld plugin', () => {
       const content = await fs.readFile(mdxPath, 'utf8')
       vi.mocked(fs.readFile).mockResolvedValue(content)
 
-      const loadCallback = build.onLoad.mock.calls[0][1]
+      const loadCallback = getHandlerForNamespace('file')
+      expect(loadCallback).toBeDefined()
       const result = await loadCallback({ path: mdxPath, namespace: 'file' })
 
       expect(result.errors).toBeDefined()
@@ -107,11 +118,13 @@ describe('mdxld plugin', () => {
       const content = await fs.readFile(mdxPath, 'utf8')
       vi.mocked(fs.readFile).mockResolvedValue(content)
 
-      const loadCallback = build.onLoad.mock.calls[0][1]
+      const loadCallback = getHandlerForNamespace('file')
+      expect(loadCallback).toBeDefined()
       const result = await loadCallback({ path: mdxPath, namespace: 'file' })
       const virtualPath = result.path
 
-      const virtualCallback = build.onLoad.mock.calls[2][1]
+      const virtualCallback = getHandlerForNamespace('virtual')
+      expect(virtualCallback).toBeDefined()
       const virtualResult = await virtualCallback({ path: virtualPath, namespace: 'virtual' })
 
       expect(virtualResult.contents).toBe(content)
@@ -123,11 +136,13 @@ describe('mdxld plugin', () => {
       const content = await fs.readFile(mdxPath, 'utf8')
       vi.mocked(fs.readFile).mockResolvedValue(content)
 
-      const loadCallback = build.onLoad.mock.calls[0][1]
+      const loadCallback = getHandlerForNamespace('file')
+      expect(loadCallback).toBeDefined()
       const result = await loadCallback({ path: mdxPath, namespace: 'file' })
       const virtualPath = result.path
 
-      const virtualCallback = build.onLoad.mock.calls[2][1]
+      const virtualCallback = getHandlerForNamespace('virtual')
+      expect(virtualCallback).toBeDefined()
       const virtualResult = await virtualCallback({ path: virtualPath, namespace: 'virtual' })
 
       expect(virtualResult.contents).toBe(content)

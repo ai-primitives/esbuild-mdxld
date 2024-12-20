@@ -1,10 +1,16 @@
-import { Plugin, PluginBuild } from 'esbuild'
-import { vi } from 'vitest'
+import { Plugin, PluginBuild, OnLoadArgs, OnLoadResult, OnResolveArgs, OnResolveResult } from 'esbuild'
+import { vi, Mock } from 'vitest'
+
+type HandlerMap = Map<string, (args: any) => Promise<any>>
+
+interface MockWithHandlers<T extends (...args: any[]) => any> extends Mock<T> {
+  handlers?: HandlerMap
+}
 
 // Minimal interface for test build object
 interface BuildStub {
-  onLoad: ReturnType<typeof vi.fn>
-  onResolve: ReturnType<typeof vi.fn>
+  onLoad: MockWithHandlers<(options: { filter: RegExp; namespace?: string }, callback: (args: OnLoadArgs) => Promise<OnLoadResult>) => void>
+  onResolve: MockWithHandlers<(options: { filter: RegExp }, callback: (args: OnResolveArgs) => Promise<OnResolveResult>) => void>
   initialOptions: {
     fs?: {
       readFile: ReturnType<typeof vi.fn>
@@ -19,8 +25,17 @@ interface BuildStub {
 }
 
 export const createBuildStub = (): BuildStub => {
-  const onLoad = vi.fn()
-  const onResolve = vi.fn()
+  const handlers = new Map()
+  const onLoad = vi.fn((options: { filter: RegExp; namespace?: string }, callback: (args: OnLoadArgs) => Promise<OnLoadResult>) => {
+    handlers.set(options.namespace || 'file', callback)
+  }) as BuildStub['onLoad']
+  onLoad.handlers = handlers
+
+  const resolveHandlers = new Map()
+  const onResolve = vi.fn((options: { filter: RegExp }, callback: (args: OnResolveArgs) => Promise<OnResolveResult>) => {
+    resolveHandlers.set(options.filter.toString(), callback)
+  }) as BuildStub['onResolve']
+  onResolve.handlers = resolveHandlers
 
   return {
     onLoad,

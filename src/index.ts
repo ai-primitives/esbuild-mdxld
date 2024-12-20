@@ -52,53 +52,8 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
         namespace: 'http-url'
       }))
 
-      // Handle virtual files first
-      build.onLoad({ filter: /.*/, namespace: 'virtual' }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
-        const virtualFile = virtualFs.get(args.path)
-        if (!virtualFile) {
-          return {
-            errors: [{ text: 'Invalid YAML syntax' }],
-            loader: 'mdx' as MDXLoader
-          }
-        }
-        return virtualFile
-      })
-
-      // Handle HTTP imports next
-      build.onLoad({ filter: /.*/, namespace: 'http-url' }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
-        // Check cache first
-        const cachedFile = virtualFs.get(args.path)
-        if (cachedFile) {
-          return cachedFile
-        }
-
-        try {
-          const response = await fetch(args.path)
-          if (!response.ok) {
-            return {
-              errors: [{ text: `HTTP ${response.status}: ${response.statusText}` }],
-              loader: 'mdx' as MDXLoader
-            }
-          }
-
-          const contents = await response.text()
-          const virtualFile: VirtualFile = {
-            contents,
-            loader: 'mdx' as MDXLoader,
-            watchFiles: [args.path]
-          }
-          virtualFs.set(args.path, virtualFile)
-          return virtualFile
-        } catch (error) {
-          return {
-            errors: [{ text: 'Invalid YAML syntax' }],
-            loader: 'mdx' as MDXLoader
-          }
-        }
-      })
-
-      // Handle MDX files last
-      build.onLoad({ filter: /\.mdx?$/ }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
+      // Handle file namespace first
+      build.onLoad({ filter: /\.mdx?$/, namespace: 'file' }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
         try {
           const source = await readFile(args.path, 'utf8')
           const virtualPath = `virtual:${args.path}`
@@ -116,7 +71,8 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
               virtualFs.set(virtualPath, virtualFile)
               return {
                 path: virtualPath,
-                namespace: 'virtual'
+                namespace: 'virtual',
+                watchFiles: [args.path]
               }
             }
 
@@ -144,7 +100,8 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
               virtualFs.set(virtualPath, virtualFile)
               return {
                 path: virtualPath,
-                namespace: 'virtual'
+                namespace: 'virtual',
+                watchFiles: [args.path]
               }
             } catch (yamlError) {
               return {
@@ -160,7 +117,64 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
           }
         } catch (error) {
           return {
-            errors: [{ text: 'Invalid YAML syntax' }],
+            errors: [{ text: error instanceof Error ? error.message : 'Failed to read file' }],
+            loader: 'mdx' as MDXLoader
+          }
+        }
+      })
+
+      // Handle virtual files next
+      build.onLoad({ filter: /.*/, namespace: 'virtual' }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
+        const virtualFile = virtualFs.get(args.path)
+        if (!virtualFile) {
+          return {
+            errors: [{ text: 'Virtual file not found' }],
+            loader: 'mdx' as MDXLoader
+          }
+        }
+        return {
+          contents: virtualFile.contents,
+          loader: virtualFile.loader,
+          watchFiles: virtualFile.watchFiles
+        }
+      })
+
+      // Handle HTTP imports last
+      build.onLoad({ filter: /.*/, namespace: 'http-url' }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
+        // Check cache first
+        const cachedFile = virtualFs.get(args.path)
+        if (cachedFile) {
+          return {
+            contents: cachedFile.contents,
+            loader: cachedFile.loader,
+            watchFiles: cachedFile.watchFiles
+          }
+        }
+
+        try {
+          const response = await fetch(args.path)
+          if (!response.ok) {
+            return {
+              errors: [{ text: `HTTP ${response.status}: ${response.statusText}` }],
+              loader: 'mdx' as MDXLoader
+            }
+          }
+
+          const contents = await response.text()
+          const virtualFile: VirtualFile = {
+            contents,
+            loader: 'mdx' as MDXLoader,
+            watchFiles: [args.path]
+          }
+          virtualFs.set(args.path, virtualFile)
+          return {
+            contents,
+            loader: 'mdx' as MDXLoader,
+            watchFiles: [args.path]
+          }
+        } catch (error) {
+          return {
+            errors: [{ text: error instanceof Error ? error.message : 'Failed to fetch' }],
             loader: 'mdx' as MDXLoader
           }
         }

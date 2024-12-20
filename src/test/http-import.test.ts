@@ -19,9 +19,13 @@ describe('mdxld plugin - HTTP imports', () => {
     vi.restoreAllMocks()
   })
 
+  const getHandlerForNamespace = (namespace: string) => {
+    return (build.onLoad as any).handlers?.get(namespace)
+  }
+
   it('should resolve HTTP imports', async () => {
-    const { onLoad } = build
-    const callback = onLoad.mock.calls[2][1]
+    const callback = getHandlerForNamespace('http-url')
+    expect(callback).toBeDefined()
     const result = await callback({ path: 'https://example.com/test.mdx', namespace: 'http-url' })
     expect(result.contents).toBe('Response 1')
     expect(result.loader).toBe('mdx')
@@ -29,8 +33,8 @@ describe('mdxld plugin - HTTP imports', () => {
   })
 
   it('should handle HTTP import errors', async () => {
-    const { onLoad } = build
-    const callback = onLoad.mock.calls[2][1]
+    const callback = getHandlerForNamespace('http-url')
+    expect(callback).toBeDefined()
     const result = await callback({ path: 'https://example.com/error.mdx', namespace: 'http-url' })
     expect(result.errors).toBeDefined()
     expect(result.errors[0].text).toBe('HTTP 404: Not Found')
@@ -39,8 +43,8 @@ describe('mdxld plugin - HTTP imports', () => {
   })
 
   it('should cache HTTP responses', async () => {
-    const { onLoad } = build
-    const callback = onLoad.mock.calls[2][1]
+    const callback = getHandlerForNamespace('http-url')
+    expect(callback).toBeDefined()
     const testUrl = 'https://example.com/test.mdx'
 
     // First request
