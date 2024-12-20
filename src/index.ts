@@ -58,10 +58,10 @@ const processYamlLd = (data: Record<string, unknown>, preferDollarPrefix: boolea
   for (const [key, value] of Object.entries(data)) {
     const isLdKey = key.startsWith('@') || (preferDollarPrefix && key.startsWith('$'))
     const cleanKey = isLdKey ? key.slice(1) : key
+    const prefix = preferDollarPrefix ? '$' : '@'
 
-    // Preserve the original structure for LD properties
     if (isLdKey) {
-      result[cleanKey] = processValue(value)
+      result[`${prefix}${cleanKey}`] = processValue(value)
     } else {
       result[key] = processValue(value)
     }
@@ -123,7 +123,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
             }
           }
 
-          // No frontmatter, return original content
+          // No frontmatter, return original content with mdx loader
           return {
             contents: source,
             loader: 'mdx' as ESBuildLoader,
@@ -142,7 +142,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
       })
 
       // Handle HTTP imports
-      build.onLoad({ filter: /.*/, namespace: 'http-import' }, async (args): Promise<OnLoadResult> => {
+      build.onLoad({ filter: /.*/, namespace: 'http-import' }, async (args: { path: string }): Promise<OnLoadResult> => {
         const cacheTTL = options.httpCacheTTL ?? CACHE_TTL
         const timeout = options.httpTimeout ?? 10000
 
