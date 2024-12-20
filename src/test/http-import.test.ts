@@ -2,11 +2,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mdxld } from '../index'
 import { createBuildStub } from './utils'
+import { mocks } from './setup'
 import type { PluginBuild } from 'esbuild'
 
 describe('mdxld plugin - HTTP imports', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.fetch.mockImplementation(async () => {
+      return new (mocks.Response as typeof Response)('Test content', {
+        status: 200,
+        statusText: 'OK',
+      })
+    })
   })
 
   afterEach(() => {
@@ -14,14 +21,6 @@ describe('mdxld plugin - HTTP imports', () => {
   })
 
   it('should resolve HTTP imports', async () => {
-    const mockGet = vi.fn().mockImplementation(async () => ({
-      ok: true,
-      text: async () => 'Test content',
-      status: 200,
-      statusText: 'OK',
-    }))
-    vi.stubGlobal('fetch', mockGet)
-
     const plugin = mdxld()
     const build = createBuildStub()
     plugin.setup(build as unknown as PluginBuild)
@@ -32,16 +31,16 @@ describe('mdxld plugin - HTTP imports', () => {
 
     expect(result.contents).toBe('Test content')
     expect(result.loader).toBe('mdx')
-    expect(mockGet).toHaveBeenCalled()
+    expect(mocks.fetch).toHaveBeenCalled()
   })
 
   it('should handle HTTP import errors', async () => {
-    const mockGet = vi.fn().mockImplementation(async () => ({
-      ok: false,
-      status: 404,
-      statusText: 'Not Found',
-    }))
-    vi.stubGlobal('fetch', mockGet)
+    mocks.fetch.mockImplementation(async () => {
+      return new (mocks.Response as typeof Response)(null, {
+        status: 404,
+        statusText: 'Not Found',
+      })
+    })
 
     const plugin = mdxld()
     const build = createBuildStub()
@@ -54,20 +53,19 @@ describe('mdxld plugin - HTTP imports', () => {
     expect(result.errors).toBeDefined()
     expect(result.errors[0].text).toBe('HTTP 404: Not Found')
     expect(result.loader).toBe('mdx')
-    expect(mockGet).toHaveBeenCalled()
+    expect(mocks.fetch).toHaveBeenCalled()
   })
 
   it('should cache HTTP responses', async () => {
     const responses = ['Response 1', 'Response 2']
     let callCount = 0
 
-    const mockGet = vi.fn().mockImplementation(async () => ({
-      ok: true,
-      text: async () => responses[callCount++],
-      status: 200,
-      statusText: 'OK',
-    }))
-    vi.stubGlobal('fetch', mockGet)
+    mocks.fetch.mockImplementation(async () => {
+      return new (mocks.Response as typeof Response)(responses[callCount++], {
+        status: 200,
+        statusText: 'OK',
+      })
+    })
 
     const plugin = mdxld()
     const build = createBuildStub()
@@ -85,6 +83,6 @@ describe('mdxld plugin - HTTP imports', () => {
     const result2 = await callback({ path: 'https://example.com/test.mdx' })
     expect(result2.contents).toBe('Response 1')
     expect(result2.loader).toBe('mdx')
-    expect(mockGet).toHaveBeenCalledTimes(1)
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
   })
 })
