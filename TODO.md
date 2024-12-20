@@ -1,44 +1,35 @@
-# Project Status and Tasks
+# Implementation Plan
 
-## Setup and Configuration
+## Core Plugin Implementation
+- [ ] Set up plugin structure extending @mdx-js/esbuild
+- [ ] Integrate mdxld for YAML-LD parsing
+- [ ] Add remark-mdxld for MDX enrichment
+- [ ] Implement URI/HTTP import resolution
+  - [ ] Add onResolve hook for http(s):// imports
+  - [ ] Add onLoad hook to fetch remote content
+  - [ ] Cache remote content for performance
+  - [ ] Handle error cases and timeouts
 
-- [x] Initialize package with TypeScript configuration
-- [x] Set up Vitest for testing
-- [x] Configure ESLint and Prettier
-- [x] Set up basic project structure
-- [x] Create placeholder implementation and tests
-- [x] Configure package.json with proper metadata
-
-## Implementation
-- [x] Basic package structure
-  - [x] TypeScript configuration
-  - [x] Testing setup with Vitest
-  - [x] ESLint and Prettier configuration
-- [x] CLI functionality
-  - [x] Basic command-line interface
-  - [x] Version and help commands
-- [ ] Advanced features
-  - [ ] Additional CLI commands
-  - [ ] Extended test coverage
-  - [ ] Documentation examples
+## WASM Support
+- [ ] Create separate entry point for WASM
+- [ ] Implement WASM-specific plugin wrapper
+- [ ] Add WASM build configuration
+- [ ] Test WASM functionality
 
 ## Documentation
-
-- [x] Create README with badges and usage instructions
-- [ ] Complete CONTRIBUTING.md guide
 - [ ] Add API documentation
-- [ ] Add examples directory with usage examples
+- [ ] Add examples for common use cases
+- [ ] Document configuration options
+- [ ] Add contributing guidelines
 
-## CI/CD
-
-- [ ] Set up GitHub Actions workflow
-- [ ] Configure semantic-release
-- [ ] Add test coverage reporting
-- [ ] Set up automated npm publishing
+## Testing
+- [ ] Unit tests for core functionality
+- [ ] Integration tests with example MDX files
+- [ ] WASM-specific tests
+- [ ] Remote content import tests
 
 ## Future Enhancements
-
-- [ ] Add more comprehensive examples
-- [ ] Add changelog generation
-- [ ] Add pull request template
-- [ ] Add issue templates
+- [ ] Add support for custom remote content resolvers
+- [ ] Implement caching strategies for remote content
+- [ ] Add validation for remote content schemas
+- [ ] Support for custom YAML-LD contexts

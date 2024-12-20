@@ -1,68 +1,41 @@
-# @ai-primitives/package-template
+# esbuild-mdxld
 
-[![npm version](https://badge.fury.io/js/%40ai-primitives%2Fpackage-template.svg)](https://www.npmjs.com/package/@ai-primitives/package-template)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-A modern TypeScript package template with Vitest, Prettier, ESLint, and semantic versioning.
+ESBuild plugin for MDX with Linked Data Context and URI/HTTP imports. Extends @mdx-js/esbuild with YAML-LD support and remote content imports.
 
 ## Features
-
-- 🚀 TypeScript for type safety and modern JavaScript features
-- ⚡️ Vitest for fast, modern testing
-- 🎨 Prettier for consistent code formatting
-- 🔍 ESLint for code quality
-- 📦 Semantic versioning with automated releases
-- 🔄 GitHub Actions for CI/CD
+- 🔗 Full YAML-LD support in frontmatter
+- 📡 URI/HTTP imports for remote content
+- 🌐 WASM support via esbuild-mdxld/wasm
+- 🔄 Integrated with remark-mdxld for enrichment
+- 📦 Type-safe parsing and validation
 
 ## Installation
-
 ```bash
-pnpm add @ai-primitives/package-template
+npm install esbuild-mdxld
+# or
+pnpm add esbuild-mdxld
 ```
 
 ## Usage
-
 ```typescript
-import { add } from '@ai-primitives/package-template'
+import mdxld from 'esbuild-mdxld'
+import * as esbuild from 'esbuild'
 
-const result = add(1, 2) // returns 3
+await esbuild.build({
+  entryPoints: ['index.mdx'],
+  outfile: 'out.js',
+  plugins: [mdxld({
+    // Options from @mdx-js/esbuild
+    jsxImportSource: '@mdx-js/react',
+    // Additional mdxld options
+    validateRequired: true,
+    preferDollarPrefix: true
+  })]
+})
 ```
 
-## Development
-
-```bash
-# Install dependencies
-pnpm install
-
-# Run tests
-pnpm test
-
-# Run tests in watch mode
-pnpm test:watch
-
-# Build the package
-pnpm build
-
-# Lint the code
-pnpm lint
-
-# Format the code
-pnpm format
+## WASM Usage
+```typescript
+import mdxld from 'esbuild-mdxld/wasm'
+// ... same usage as above
 ```
-
-## Contributing
-
-Please read our [Contributing Guide](./CONTRIBUTING.md) to learn about our development process and how to propose bugfixes and improvements.
-
-## License
-
-MIT © [AI Primitives](https://mdx.org.ai)
-
-## Dependencies
-
-This package uses the following key dependencies:
-
-- TypeScript for static typing
-- Vitest for testing
-- ESLint for linting
-- Prettier for code formatting
