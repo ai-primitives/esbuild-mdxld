@@ -1,21 +1,38 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mdxld } from '../index'
-import type { Plugin } from 'esbuild'
+import type { Plugin, PluginBuild } from 'esbuild'
+
+type MockFunction<T> = T & ReturnType<typeof vi.fn>
+interface MockPluginBuild extends PluginBuild {
+  onLoad: MockFunction<PluginBuild['onLoad']>
+  onResolve: MockFunction<PluginBuild['onResolve']>
+  initialOptions: Record<string, unknown>
+}
 
 describe('HTTP import resolution', () => {
   let plugin: Plugin
-  let build: any
+  let build: MockPluginBuild
 
   beforeEach(() => {
     plugin = mdxld({
       httpTimeout: 5000,
-      httpCacheTTL: 1000
+      httpCacheTTL: 1000,
     })
     build = {
       onLoad: vi.fn(),
       onResolve: vi.fn(),
-      initialOptions: {}
-    }
+      initialOptions: {},
+      esbuild: { version: '0.19.0' },
+      resolve: async (path: string) => ({ path, namespace: 'file' }),
+      warn: vi.fn(),
+      error: vi.fn(),
+      write: vi.fn(),
+      watch: vi.fn(),
+      dispose: vi.fn(),
+      serve: vi.fn(),
+      rebuild: vi.fn(),
+      metafile: {},
+    } as unknown as MockPluginBuild
     plugin.setup(build)
   })
 
@@ -25,7 +42,7 @@ describe('HTTP import resolution', () => {
 
     expect(result).toEqual({
       path: 'https://example.com/test.mdx',
-      namespace: 'http-import'
+      namespace: 'http-import',
     })
   })
 

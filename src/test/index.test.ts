@@ -1,21 +1,38 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mdxld } from '../index'
-import type { Plugin } from 'esbuild'
+import type { Plugin, PluginBuild } from 'esbuild'
 import fs from 'node:fs/promises'
+
+type MockFunction<T> = T & ReturnType<typeof vi.fn>
+interface MockPluginBuild extends PluginBuild {
+  onLoad: MockFunction<PluginBuild['onLoad']>
+  onResolve: MockFunction<PluginBuild['onResolve']>
+  initialOptions: Record<string, unknown>
+}
 
 describe('mdxld plugin', () => {
   let plugin: Plugin
-  let build: any
+  let build: MockPluginBuild
 
   beforeEach(() => {
     plugin = mdxld({
-      validateRequired: true
+      validateRequired: true,
     })
     build = {
       onLoad: vi.fn(),
       onResolve: vi.fn(),
-      initialOptions: {}
-    }
+      initialOptions: {},
+      esbuild: { version: '0.19.0' },
+      resolve: async (path: string) => ({ path, namespace: 'file' }),
+      warn: vi.fn(),
+      error: vi.fn(),
+      write: vi.fn(),
+      watch: vi.fn(),
+      dispose: vi.fn(),
+      serve: vi.fn(),
+      rebuild: vi.fn(),
+      metafile: {},
+    } as unknown as MockPluginBuild
     plugin.setup(build)
   })
 
@@ -36,6 +53,7 @@ title: Test Post
 # Content
 `
       const loadCallback = build.onLoad.mock.calls[0][1]
+      vi.spyOn(fs, 'readFile').mockResolvedValueOnce(mdxContent)
       const result = await loadCallback({ path: 'test.mdx' })
       expect(result.contents).toContain('"context": "https://schema.org"')
       expect(result.contents).toContain('"type": "BlogPosting"')
@@ -54,6 +72,7 @@ rating:
 # Content
 `
       const loadCallback = build.onLoad.mock.calls[0][1]
+      vi.spyOn(fs, 'readFile').mockResolvedValueOnce(mdxContent)
       const result = await loadCallback({ path: 'test.mdx' })
       expect(result.contents).toContain('"ratingValue": 4.5')
       expect(result.contents).toContain('"reviewCount": 100')
@@ -77,6 +96,7 @@ author:
 # Content
 `
       const loadCallback = build.onLoad.mock.calls[0][1]
+      vi.spyOn(fs, 'readFile').mockResolvedValueOnce(mdxContent)
       const result = await loadCallback({ path: 'test.mdx' })
       expect(result.contents).toContain('"keywords":')
       expect(result.contents).toContain('"javascript"')
@@ -100,6 +120,7 @@ author:
 # Content
 `
       const loadCallback = build.onLoad.mock.calls[0][1]
+      vi.spyOn(fs, 'readFile').mockResolvedValueOnce(mdxContent)
       const result = await loadCallback({ path: 'test.mdx' })
       expect(result.contents).toContain('"type": "Person"')
       expect(result.contents).toContain('"type": "PostalAddress"')
@@ -120,6 +141,7 @@ offers:
 # Content
 `
       const loadCallback = build.onLoad.mock.calls[0][1]
+      vi.spyOn(fs, 'readFile').mockResolvedValueOnce(mdxContent)
       const result = await loadCallback({ path: 'test.mdx' })
       expect(result.contents).toContain('"type": "Offer"')
       expect(result.contents).toContain('"price": 29.99')
@@ -136,6 +158,7 @@ offers:
 # Content
 `
       const loadCallback = build.onLoad.mock.calls[0][1]
+      vi.spyOn(fs, 'readFile').mockResolvedValueOnce(mdxContent)
       const result = await loadCallback({ path: 'test.mdx' })
       expect(result.errors).toBeDefined()
       expect(result.errors[0].text).toContain('Error processing MDX file')
@@ -144,6 +167,7 @@ offers:
     it('should handle missing frontmatter', async () => {
       const mdxContent = '# Just content without frontmatter'
       const loadCallback = build.onLoad.mock.calls[0][1]
+      vi.spyOn(fs, 'readFile').mockResolvedValueOnce(mdxContent)
       const result = await loadCallback({ path: 'test.mdx' })
       expect(result.contents).toBe(mdxContent)
       expect(result.loader).toBe('mdx')
