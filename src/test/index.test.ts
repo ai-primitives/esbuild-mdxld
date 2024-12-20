@@ -1,20 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { Plugin, PluginBuild } from 'esbuild'
+import { Plugin } from 'esbuild'
 import { mdxld } from '../index'
 import * as fs from 'node:fs/promises'
 import path from 'node:path'
+import { createBuildStub, setupTestPlugin } from './utils'
 
 vi.mock('node:fs/promises')
 
-interface MockPluginBuild extends PluginBuild {
-  onLoad: ReturnType<typeof vi.fn>
-  onResolve: ReturnType<typeof vi.fn>
-  initialOptions: Record<string, unknown>
-}
-
 describe('mdxld plugin', () => {
   let plugin: Plugin
-  let build: MockPluginBuild
+  let build: ReturnType<typeof createBuildStub>
   const examplesDir = path.join(process.cwd(), 'examples')
 
   beforeEach(() => {
@@ -23,14 +18,7 @@ describe('mdxld plugin', () => {
       validateRequired: true,
       preferDollarPrefix: false,
     })
-    build = {
-      onResolve: vi.fn(),
-      onLoad: vi.fn(),
-      initialOptions: {},
-      esbuild: { version: '0.19.0' },
-      resolve: async (path: string) => ({ path, namespace: 'file' }),
-    } as unknown as MockPluginBuild
-    plugin.setup(build)
+    build = setupTestPlugin(plugin)
   })
 
   it('should create a plugin with default options', () => {
