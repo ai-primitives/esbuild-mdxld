@@ -8,7 +8,6 @@ import mdx from '@mdx-js/esbuild'
 import remarkMdxld from 'remark-mdxld'
 import matter from 'gray-matter'
 import * as yaml from 'js-yaml'
-import { fetch } from 'undici'
 import type { Pluggable } from 'unified'
 import { MDXLoader, VirtualFile, LoadArgs } from './types'
 
@@ -77,7 +76,10 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
         try {
           const cachedFile = virtualFs.get(args.path)
           if (cachedFile) {
-            return cachedFile
+            return {
+              contents: cachedFile.contents,
+              loader: cachedFile.loader,
+            }
           }
 
           const response = await fetch(args.path)
@@ -91,7 +93,10 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
           const contents = await response.text()
           const virtualFile = { contents, loader: 'mdx' as MDXLoader }
           virtualFs.set(args.path, virtualFile)
-          return virtualFile
+          return {
+            contents,
+            loader: 'mdx' as MDXLoader,
+          }
         } catch (error) {
           return {
             errors: [{ text: error instanceof Error ? error.message : 'Failed to fetch remote content' }],
@@ -112,7 +117,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
             if (!frontmatter || Object.keys(frontmatter).length === 0) {
               const virtualFile = { contents: source, loader: 'mdx' as MDXLoader }
               virtualFs.set(args.path, virtualFile)
-              return virtualFile
+              return { contents: source, loader: 'mdx' as MDXLoader }
             }
 
             // Process YAML-LD data
@@ -120,10 +125,10 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
             const enrichedContent = `---\n${yaml.dump(processedYaml)}\n---\n${content}`
             const virtualFile = { contents: enrichedContent, loader: 'mdx' as MDXLoader }
             virtualFs.set(args.path, virtualFile)
-            return virtualFile
+            return { contents: enrichedContent, loader: 'mdx' as MDXLoader }
           } catch (error) {
             return {
-              errors: [{ text: error instanceof yaml.YAMLException ? error.message : 'Invalid YAML syntax' }],
+              errors: [{ text: 'Invalid YAML syntax' }],
               loader: 'mdx' as MDXLoader,
             }
           }
@@ -144,7 +149,10 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
             loader: 'mdx' as MDXLoader,
           }
         }
-        return virtualFile
+        return {
+          contents: virtualFile.contents,
+          loader: virtualFile.loader,
+        }
       })
     },
   }
