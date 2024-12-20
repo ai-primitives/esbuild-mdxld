@@ -19,7 +19,7 @@ describe('mdxld plugin - HTTP imports', () => {
       status: 200,
       statusText: 'OK',
     }))
-    global.fetch = mockGet
+    vi.stubGlobal('fetch', mockGet)
 
     const plugin = mdxld()
     const build = createBuildStub()
@@ -40,7 +40,7 @@ describe('mdxld plugin - HTTP imports', () => {
       status: 404,
       statusText: 'Not Found',
     }))
-    global.fetch = mockGet
+    vi.stubGlobal('fetch', mockGet)
 
     const plugin = mdxld()
     const build = createBuildStub()
