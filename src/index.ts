@@ -2,37 +2,27 @@
 /// <reference lib="dom.iterable" />
 /// <reference types="node" />
 
-import { Plugin, PluginBuild, OnLoadResult, OnResolveArgs, Loader } from 'esbuild'
-import { readFile } from 'node:fs/promises'
+import { Plugin, OnLoadResult } from 'esbuild'
+import { readFile } from 'fs/promises'
 import mdx from '@mdx-js/esbuild'
 import remarkMdxld from 'remark-mdxld'
 import matter from 'gray-matter'
-import yaml from 'js-yaml'
+import * as yaml from 'js-yaml'
 import { fetch } from 'undici'
 import type { Pluggable } from 'unified'
-
-// PLACEHOLDER: rest of the file including types, interfaces, and implementation
-
-// Define types for virtual file system
-type MDXLoader = Extract<Loader, 'mdx' | 'js'>
-interface VirtualFile {
-  contents: string
-  loader: MDXLoader
-}
-
-const httpCache = new Map<string, { content: string; timestamp: number }>()
-const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+import { MDXLoader, VirtualFile, LoadArgs } from './types'
 
 // Virtual file system for processed content
 const virtualFs = new Map<string, VirtualFile>()
 
 export interface MDXLDOptions {
   jsxImportSource?: string
-  validateRequired?: boolean
+  providerImports?: Record<string, string>
   preferDollarPrefix?: boolean
   httpCacheTTL?: number
   httpTimeout?: number
   remarkPlugins?: Pluggable[]
+  rehypePlugins?: any[]
 }
 
 const processYamlLd = (data: Record<string, unknown>, preferDollarPrefix: boolean): Record<string, unknown> => {
@@ -83,7 +73,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
       }))
 
       // Handle HTTP imports loading
-      build.onLoad({ filter: /.*/, namespace: 'http-url' }, async (args): Promise<OnLoadResult> => {
+      build.onLoad({ filter: /.*/, namespace: 'http-url' }, async (args: LoadArgs): Promise<OnLoadResult> => {
         try {
           const cachedFile = virtualFs.get(args.path)
           if (cachedFile) {
@@ -151,12 +141,12 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
         if (!virtualFile) {
           return {
             errors: [{ text: `Virtual file not found: ${args.path}` }],
-            loader: 'mdx' as MDXLoader
+            loader: 'mdx' as MDXLoader,
           }
         }
         return virtualFile
       })
-    }
+    },
   }
 }
 
