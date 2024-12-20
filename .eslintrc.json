@@ -16,6 +16,12 @@
   "plugins": ["@typescript-eslint"],
   "rules": {
     "@typescript-eslint/no-unused-vars": "error",
-    "no-undef": "off"
+    "no-undef": "error"
+  },
+  "globals": {
+    "fetch": true,
+    "Response": true,
+    "Request": true,
+    "Headers": true
   }
 }
