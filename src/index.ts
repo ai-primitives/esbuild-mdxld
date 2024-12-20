@@ -54,15 +54,19 @@ const processYamlLd = (data: Record<string, unknown>, preferDollarPrefix: boolea
     return value
   }
 
-  return Object.entries(data).reduce(
-    (acc, [key, value]) => {
-      const isLdKey = key.startsWith('@') || (preferDollarPrefix && key.startsWith('$'))
-      const cleanKey = isLdKey ? key.slice(1) : key
-      acc[cleanKey] = processValue(value)
-      return acc
-    },
-    {} as Record<string, unknown>,
-  )
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(data)) {
+    const isLdKey = key.startsWith('@') || (preferDollarPrefix && key.startsWith('$'))
+    const cleanKey = isLdKey ? key.slice(1) : key
+
+    // Preserve the original structure for LD properties
+    if (isLdKey) {
+      result[cleanKey] = processValue(value)
+    } else {
+      result[key] = processValue(value)
+    }
+  }
+  return result
 }
 
 export const mdxld = (options: MDXLDOptions = {}): Plugin => {
@@ -107,11 +111,11 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
                 contents: processedSource,
                 loader: 'mdx' as ESBuildLoader,
               }
-            } catch (yamlError) {
+            } catch {
               return {
                 errors: [
                   {
-                    text: `Error processing MDX file: ${(yamlError as Error).message}`,
+                    text: `Error processing MDX file: Invalid YAML syntax`,
                     location: { file: args.path },
                   },
                 ],
@@ -119,6 +123,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
             }
           }
 
+          // No frontmatter, return original content
           return {
             contents: source,
             loader: 'mdx' as ESBuildLoader,
