@@ -8,6 +8,7 @@ import mdx from '@mdx-js/esbuild'
 import remarkMdxld from 'remark-mdxld'
 import matter from 'gray-matter'
 import yaml from 'js-yaml'
+import { fetch } from 'undici'
 import type { Pluggable } from 'unified'
 
 // PLACEHOLDER: rest of the file including types, interfaces, and implementation
