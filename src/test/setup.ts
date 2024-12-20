@@ -1,4 +1,8 @@
+/// <reference lib="dom" />
+/// <reference lib="dom.iterable" />
 import { vi } from 'vitest'
+
+// Create mock implementations with proper types
 
 // Create mock implementations with proper types
 export const mockHeaders = vi.fn(() => ({
@@ -104,6 +108,10 @@ class MockResponse implements Response {
   async text(): Promise<string> {
     return this._bodyStr
   }
+
+  async bytes(): Promise<Uint8Array> {
+    return new TextEncoder().encode(this._bodyStr)
+  }
 }
 
 export const mockResponse = vi.fn((body?: BodyInit | null, init?: ResponseInit) => {
@@ -111,7 +119,7 @@ export const mockResponse = vi.fn((body?: BodyInit | null, init?: ResponseInit) 
 }) as unknown as typeof Response
 
 // Create a properly typed fetch mock that uses MockResponse
-export const mockFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+export const mockFetch = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   const urlString = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
 
   // Return 404 for error or not-found URLs
@@ -124,7 +132,7 @@ export const mockFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestIn
     return new MockResponse('# Cached Content', {
       status: 200,
       statusText: 'OK',
-      headers: new (mockHeaders as typeof Headers)()
+      headers: new (mockHeaders as typeof Headers)(),
     })
   }
 
@@ -133,7 +141,7 @@ export const mockFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestIn
     return new MockResponse('# Test Content', {
       status: 200,
       statusText: 'OK',
-      headers: new (mockHeaders as typeof Headers)()
+      headers: new (mockHeaders as typeof Headers)(),
     })
   }
 
@@ -141,12 +149,13 @@ export const mockFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestIn
   return new MockResponse('# Default Content', {
     status: 200,
     statusText: 'OK',
-    headers: new (mockHeaders as typeof Headers)()
+    headers: new (mockHeaders as typeof Headers)(),
   })
 })
 
 // Explicitly set fetch on globalThis
-globalThis.fetch = mockFetch as unknown as typeof fetch
+type GlobalFetch = typeof globalThis.fetch
+globalThis.fetch = mockFetch as unknown as GlobalFetch
 globalThis.Headers = mockHeaders as unknown as typeof Headers
 globalThis.Request = mockRequest as unknown as typeof Request
 globalThis.Response = mockResponse as unknown as typeof Response
