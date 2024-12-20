@@ -126,7 +126,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
             const virtualFile = { contents: enrichedContent, loader: 'mdx' as MDXLoader }
             virtualFs.set(args.path, virtualFile)
             return { contents: enrichedContent, loader: 'mdx' as MDXLoader }
-          } catch (error) {
+          } catch {
             return {
               errors: [{ text: 'Invalid YAML syntax' }],
               loader: 'mdx' as MDXLoader,
