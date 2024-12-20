@@ -103,7 +103,7 @@ const mockResponse = vi.fn((body?: BodyInit | null, init?: ResponseInit) => {
   return new MockResponse(body, init)
 }) as unknown as typeof Response
 
-const mockFetch = vi.fn().mockImplementation(async (input: RequestInfo | URL, _init?: RequestInit): Promise<Response> => {
+const mockFetch = vi.fn().mockImplementation(async (input: RequestInfo | URL): Promise<Response> => {
   const urlString = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
   if (urlString.includes('error') || urlString.includes('not-found')) {
     return new MockResponse(null, { status: 404, statusText: 'Not Found' })
