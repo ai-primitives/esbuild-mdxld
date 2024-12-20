@@ -1,3 +1,5 @@
+/// <reference lib="dom" />
+/// <reference lib="dom.iterable" />
 import { vi } from 'vitest'
 
 // Create mock implementations with proper types
