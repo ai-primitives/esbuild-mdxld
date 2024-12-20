@@ -78,7 +78,6 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
         try {
           const cached = httpCache.get(args.path)
           if (cached && Date.now() - cached.timestamp < (options.httpCacheTTL ?? CACHE_TTL)) {
-            virtualFs.set(args.path, { contents: cached.content, loader: 'mdx' as MDXLoader })
             return { contents: cached.content, loader: 'mdx' as MDXLoader }
           }
 
@@ -110,7 +109,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
           virtualFs.set(args.path, { contents: enrichedContent, loader: 'mdx' as MDXLoader })
           return { contents: enrichedContent, loader: 'mdx' as MDXLoader }
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Invalid YAML syntax'
+          const errorMessage = error instanceof Error && error.message.includes('YAML') ? 'Invalid YAML syntax' : 'Cannot process MDX file with esbuild'
           return { errors: [{ text: errorMessage }], loader: 'mdx' as MDXLoader }
         }
       })

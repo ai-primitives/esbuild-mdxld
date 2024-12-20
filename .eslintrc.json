@@ -1,6 +1,5 @@
 {
   "env": {
-    "browser": false,
     "es2022": true,
     "node": true
   },
@@ -16,21 +15,14 @@
   "plugins": ["@typescript-eslint"],
   "rules": {
     "@typescript-eslint/no-unused-vars": "error",
-    "no-undef": "error"
-  },
-  "globals": {
-    "fetch": true,
-    "Response": true,
-    "Request": true,
-    "Headers": true,
-    "global": true
+    "@typescript-eslint/no-explicit-any": "error",
+    "no-undef": "off"
   },
   "overrides": [
     {
       "files": ["src/test/**/*.ts"],
-      "env": {
-        "node": true,
-        "jest": true
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "off"
       }
     }
   ]

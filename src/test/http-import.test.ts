@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mdxld } from '../index'
 import { createBuildStub } from './utils'
+import type { PluginBuild } from 'esbuild'
 
 describe('mdxld plugin - HTTP imports', () => {
   beforeEach(() => {
@@ -23,7 +24,7 @@ describe('mdxld plugin - HTTP imports', () => {
 
     const plugin = mdxld()
     const build = createBuildStub()
-    plugin.setup(build)
+    plugin.setup(build as unknown as PluginBuild)
 
     const { onLoad } = build
     const callback = onLoad.mock.calls[1][1]
@@ -44,7 +45,7 @@ describe('mdxld plugin - HTTP imports', () => {
 
     const plugin = mdxld()
     const build = createBuildStub()
-    plugin.setup(build)
+    plugin.setup(build as unknown as PluginBuild)
 
     const { onLoad } = build
     const callback = onLoad.mock.calls[1][1]
@@ -63,12 +64,14 @@ describe('mdxld plugin - HTTP imports', () => {
     const mockGet = vi.fn().mockImplementation(async () => ({
       ok: true,
       text: async () => responses[callCount++],
+      status: 200,
+      statusText: 'OK',
     }))
     vi.stubGlobal('fetch', mockGet)
 
     const plugin = mdxld()
     const build = createBuildStub()
-    plugin.setup(build)
+    plugin.setup(build as unknown as PluginBuild)
 
     const { onLoad } = build
     const callback = onLoad.mock.calls[1][1]
