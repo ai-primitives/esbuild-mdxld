@@ -1,6 +1,7 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 import { vi } from 'vitest'
+import { fetch, Headers, Request, Response } from 'undici'
 
 // Create mock implementations with proper types
 const mockHeaders = vi.fn(() => ({
