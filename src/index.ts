@@ -56,60 +56,42 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
       build.onLoad({ filter: /\.mdx?$/, namespace: 'file' }, async (args: LoadArgs): Promise<MDXOnLoadResult> => {
         try {
           const source = await readFile(args.path, 'utf8')
-          const virtualPath = `virtual:${args.path}`
+          const { data: frontmatter, content } = matter(source)
 
+          // Handle files without frontmatter
+          if (!frontmatter || Object.keys(frontmatter).length === 0) {
+            return {
+              contents: source,
+              loader: 'mdx' as MDXLoader,
+              watchFiles: [args.path]
+            }
+          }
+
+          // Process YAML-LD data
           try {
-            const { data: frontmatter, content } = matter(source)
+            const processedYaml = processYamlLd(frontmatter as Record<string, unknown>, Boolean(options.preferDollarPrefix))
+            const yamlString = yaml.dump(processedYaml, {
+              quotingType: '"',
+              forceQuotes: true,
+              lineWidth: -1,
+              noRefs: true,
+              noCompatMode: true,
+              flowLevel: -1,
+              indent: 2,
+              sortKeys: false
+            })
+            const processedContent = `---\n${yamlString}---\n\n${content}`
 
-            // Handle files without frontmatter
-            if (!frontmatter || Object.keys(frontmatter).length === 0) {
-              const virtualFile: VirtualFile = {
-                contents: source,
-                loader: 'mdx' as MDXLoader,
-                watchFiles: [args.path]
-              }
-              virtualFs.set(virtualPath, virtualFile)
-              return {
-                path: virtualPath,
-                namespace: 'virtual',
-                watchFiles: [args.path]
-              }
+            // Store the virtual file with the processed content
+            const virtualPath = `virtual:${args.path}`
+            const virtualFile: VirtualFile = {
+              contents: processedContent,
+              loader: 'mdx' as MDXLoader,
+              watchFiles: [args.path]
             }
-
-            // Process YAML-LD data
-            try {
-              const processedYaml = processYamlLd(frontmatter as Record<string, unknown>, Boolean(options.preferDollarPrefix))
-              const yamlString = yaml.dump(processedYaml, {
-                quotingType: '"',
-                forceQuotes: true,
-                lineWidth: -1,
-                noRefs: true,
-                noCompatMode: true,
-                flowLevel: -1,
-                indent: 2,
-                sortKeys: false
-              })
-              const processedContent = `---\n${yamlString}---\n\n${content}`
-
-              // Store the virtual file with the processed content
-              const virtualFile: VirtualFile = {
-                contents: processedContent,
-                loader: 'mdx' as MDXLoader,
-                watchFiles: [args.path]
-              }
-              virtualFs.set(virtualPath, virtualFile)
-              return {
-                path: virtualPath,
-                namespace: 'virtual',
-                watchFiles: [args.path]
-              }
-            } catch (yamlError) {
-              return {
-                errors: [{ text: 'Invalid YAML syntax' }],
-                loader: 'mdx' as MDXLoader
-              }
-            }
-          } catch (matterError) {
+            virtualFs.set(virtualPath, virtualFile)
+            return virtualFile
+          } catch (yamlError) {
             return {
               errors: [{ text: 'Invalid YAML syntax' }],
               loader: 'mdx' as MDXLoader
@@ -132,11 +114,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
             loader: 'mdx' as MDXLoader
           }
         }
-        return {
-          contents: virtualFile.contents,
-          loader: virtualFile.loader,
-          watchFiles: virtualFile.watchFiles
-        }
+        return virtualFile
       })
 
       // Handle HTTP imports last
@@ -144,11 +122,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
         // Check cache first
         const cachedFile = virtualFs.get(args.path)
         if (cachedFile) {
-          return {
-            contents: cachedFile.contents,
-            loader: cachedFile.loader,
-            watchFiles: cachedFile.watchFiles
-          }
+          return cachedFile
         }
 
         try {
@@ -167,11 +141,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
             watchFiles: [args.path]
           }
           virtualFs.set(args.path, virtualFile)
-          return {
-            contents,
-            loader: 'mdx' as MDXLoader,
-            watchFiles: [args.path]
-          }
+          return virtualFile
         } catch (error) {
           return {
             errors: [{ text: error instanceof Error ? error.message : 'Failed to fetch' }],

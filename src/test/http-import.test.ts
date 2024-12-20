@@ -27,7 +27,7 @@ describe('mdxld plugin - HTTP imports', () => {
     const callback = getHandlerForNamespace('http-url')
     expect(callback).toBeDefined()
     const result = await callback({ path: 'https://example.com/test.mdx', namespace: 'http-url' })
-    expect(result.contents).toBe('Response 1')
+    expect(result.contents).toBe('# Test Content')
     expect(result.loader).toBe('mdx')
     expect(mockFetch).toHaveBeenCalledWith('https://example.com/test.mdx')
   })
@@ -45,16 +45,16 @@ describe('mdxld plugin - HTTP imports', () => {
   it('should cache HTTP responses', async () => {
     const callback = getHandlerForNamespace('http-url')
     expect(callback).toBeDefined()
-    const testUrl = 'https://example.com/test.mdx'
+    const testUrl = 'https://example.com/cached.mdx'
 
     // First request
     const result1 = await callback({ path: testUrl, namespace: 'http-url' })
-    expect(result1.contents).toBe('Response 1')
+    expect(result1.contents).toBe('# Cached Content')
     expect(result1.loader).toBe('mdx')
 
     // Second request should use cache
     const result2 = await callback({ path: testUrl, namespace: 'http-url' })
-    expect(result2.contents).toBe('Response 1')
+    expect(result2.contents).toBe('# Cached Content')
     expect(result2.loader).toBe('mdx')
 
     // Fetch should only be called once due to caching
