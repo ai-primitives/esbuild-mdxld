@@ -1,0 +1,39 @@
+---
+$context: https://schema.org
+$type: Event
+name: Tech Conference 2024
+startDate: 2024-06-01
+endDate: 2024-06-03
+location:
+  $type: Place
+  name: Convention Center
+  address:
+    $type: PostalAddress
+    streetAddress: 456 Event Ave
+    addressLocality: Tech City
+    addressRegion: CA
+    postalCode: "94043"
+    addressCountry: US
+performers:
+  - $type: Person
+    name: Speaker One
+    topics:
+      - AI
+      - Machine Learning
+    affiliation:
+      $type: Organization
+      name: Tech Corp
+  - $type: Person
+    name: Speaker Two
+    topics:
+      - Web Development
+      - Cloud Computing
+    affiliation:
+      $type: Organization
+      name: Cloud Inc
+---
+
+# Tech Conference 2024
+
+This example demonstrates complex nested structures in YAML-LD frontmatter,
+including arrays, nested objects, and multiple levels of type definitions.
