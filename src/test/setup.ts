@@ -18,21 +18,52 @@ const mockRequest = vi.fn(() => ({
   headers: new (mockHeaders as typeof Headers)(),
 })) as unknown as typeof Request
 
-const mockResponse = vi.fn((body?: BodyInit | null, init?: ResponseInit) => ({
-  ok: init?.status === undefined || init.status >= 200 && init.status < 300,
-  status: init?.status ?? 200,
-  statusText: init?.statusText ?? 'OK',
-  headers: new (mockHeaders as typeof Headers)(),
-  text: vi.fn().mockResolvedValue(typeof body === 'string' ? body : 'Test content'),
-  json: vi.fn(),
-})) as unknown as typeof Response
+class MockResponse {
+  private body: string
+  private responseInit: ResponseInit
 
-// Create a mock fetch function
-const mockFetch = vi.fn().mockImplementation(async () => {
-  return new (mockResponse as typeof Response)('Test content', {
-    status: 200,
-    statusText: 'OK',
-  })
+  constructor(body?: BodyInit | null, init?: ResponseInit) {
+    this.body = typeof body === 'string' ? body : 'Test content'
+    this.responseInit = init || { status: 200, statusText: 'OK' }
+  }
+
+  get ok() {
+    return this.responseInit.status === undefined || (this.responseInit.status >= 200 && this.responseInit.status < 300)
+  }
+
+  get status() {
+    return this.responseInit.status ?? 200
+  }
+
+  get statusText() {
+    return this.responseInit.statusText ?? 'OK'
+  }
+
+  get headers() {
+    return new (mockHeaders as typeof Headers)()
+  }
+
+  text() {
+    return Promise.resolve(this.body)
+  }
+
+  json() {
+    return Promise.resolve({})
+  }
+}
+
+const mockResponse = vi.fn((body?: BodyInit | null, init?: ResponseInit) => {
+  return new MockResponse(body, init)
+}) as unknown as typeof Response
+
+const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+  if (url.includes('error') || url.includes('not-found')) {
+    return new MockResponse(null, { status: 404, statusText: 'Not Found' })
+  }
+  if (url.includes('test.mdx')) {
+    return new MockResponse('Response 1')
+  }
+  return new MockResponse('Test content')
 })
 
 // Export mocks for test usage
