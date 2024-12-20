@@ -7,6 +7,8 @@ import https from 'node:https'
 import http from 'node:http'
 import { Buffer } from 'node:buffer'
 
+type ESBuildLoader = Extract<Loader, 'js' | 'jsx' | 'ts' | 'tsx' | 'mdx'>
+
 const httpCache = new Map<string, { content: string; timestamp: number }>()
 const CACHE_TTL = 5 * 60 * 1000
 
@@ -52,12 +54,15 @@ const processYamlLd = (data: Record<string, unknown>, preferDollarPrefix: boolea
     return value
   }
 
-  return Object.entries(data).reduce((acc, [key, value]) => {
-    const isLdKey = key.startsWith('@') || (preferDollarPrefix && key.startsWith('$'))
-    const cleanKey = isLdKey ? key.slice(1) : key
-    acc[cleanKey] = processValue(value)
-    return acc
-  }, {} as Record<string, unknown>)
+  return Object.entries(data).reduce(
+    (acc, [key, value]) => {
+      const isLdKey = key.startsWith('@') || (preferDollarPrefix && key.startsWith('$'))
+      const cleanKey = isLdKey ? key.slice(1) : key
+      acc[cleanKey] = processValue(value)
+      return acc
+    },
+    {} as Record<string, unknown>,
+  )
 }
 
 export const mdxld = (options: MDXLDOptions = {}): Plugin => {
@@ -79,6 +84,12 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
     setup(build) {
       mdxPlugin.setup(build)
 
+      // Handle HTTP imports resolution
+      build.onResolve({ filter: /^https?:\/\// }, (args) => {
+        return { path: args.path, namespace: 'http-import' }
+      })
+
+      // Handle local MDX files
       build.onLoad({ filter: /\.mdx?$/ }, async (args): Promise<OnLoadResult> => {
         try {
           const source = await fs.readFile(args.path, 'utf8')
@@ -86,20 +97,31 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
 
           if (match) {
             const frontmatter = match[1]
-            const yamlData = parse(frontmatter)
-            const processedYaml = processYamlLd(yamlData, Boolean(options.preferDollarPrefix))
-            const yamlString = JSON.stringify(processedYaml, null, 2)
-            const processedSource = source.replace(/^---\n[\s\S]*?\n---/, `---\n${yamlString}\n---`)
+            try {
+              const yamlData = parse(frontmatter)
+              const processedYaml = processYamlLd(yamlData, Boolean(options.preferDollarPrefix))
+              const yamlString = JSON.stringify(processedYaml, null, 2)
+              const processedSource = source.replace(/^---\n[\s\S]*?\n---/, `---\n${yamlString}\n---`)
 
-            return {
-              contents: processedSource,
-              loader: 'mdx' as Loader,
+              return {
+                contents: processedSource,
+                loader: 'mdx' as ESBuildLoader,
+              }
+            } catch (yamlError) {
+              return {
+                errors: [
+                  {
+                    text: `Error processing MDX file: ${(yamlError as Error).message}`,
+                    location: { file: args.path },
+                  },
+                ],
+              }
             }
           }
 
           return {
             contents: source,
-            loader: 'mdx' as Loader,
+            loader: 'mdx' as ESBuildLoader,
           }
         } catch (error: unknown) {
           const err = error as Error
@@ -114,10 +136,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
         }
       })
 
-      build.onResolve({ filter: /^https?:\/\// }, (args) => {
-        return { path: args.path, namespace: 'http-import' }
-      })
-
+      // Handle HTTP imports
       build.onLoad({ filter: /.*/, namespace: 'http-import' }, async (args): Promise<OnLoadResult> => {
         const cacheTTL = options.httpCacheTTL ?? CACHE_TTL
         const timeout = options.httpTimeout ?? 10000
@@ -127,7 +146,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
           if (cached && Date.now() - cached.timestamp < cacheTTL) {
             return {
               contents: cached.content,
-              loader: 'mdx' as Loader,
+              loader: 'mdx' as ESBuildLoader,
             }
           }
 
@@ -143,7 +162,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
 
           return {
             contents: content,
-            loader: 'mdx' as Loader,
+            loader: 'mdx' as ESBuildLoader,
           }
         } catch (error: unknown) {
           const err = error as Error

@@ -14,6 +14,7 @@ describe('HTTP import resolution', () => {
   let build: MockPluginBuild
 
   beforeEach(() => {
+    vi.clearAllMocks()
     plugin = mdxld({
       httpTimeout: 5000,
       httpCacheTTL: 1000,
@@ -48,7 +49,7 @@ describe('HTTP import resolution', () => {
 
   it('should handle HTTP import errors', async () => {
     const loadCallback = build.onLoad.mock.calls[1][1]
-    const result = await loadCallback({ path: 'https://invalid-url/test.mdx' })
+    const result = await loadCallback({ path: 'https://invalid-url/test.mdx', namespace: 'http-import' })
 
     expect(result.errors).toBeDefined()
     expect(result.errors[0].text).toContain('Error fetching remote content')
@@ -58,10 +59,10 @@ describe('HTTP import resolution', () => {
     const loadCallback = build.onLoad.mock.calls[1][1]
 
     // First request
-    await loadCallback({ path: 'https://example.com/test.mdx' })
+    await loadCallback({ path: 'https://example.com/test.mdx', namespace: 'http-import' })
 
     // Second request should use cache
-    const result = await loadCallback({ path: 'https://example.com/test.mdx' })
+    const result = await loadCallback({ path: 'https://example.com/test.mdx', namespace: 'http-import' })
     expect(result.loader).toBe('mdx')
   })
 })
