@@ -20,6 +20,9 @@
     "@typescript-eslint/no-explicit-any": "error",
     "no-undef": "error"
   },
+  "globals": {
+    "fetch": "readonly"
+  },
   "overrides": [
     {
       "files": ["src/test/**/*.ts"],
