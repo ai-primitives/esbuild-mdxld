@@ -8,6 +8,7 @@ import matter from 'gray-matter'
 import * as yaml from 'js-yaml'
 import type { Pluggable } from 'unified'
 import { MDXLoader, VirtualFile, LoadArgs } from './types'
+import { fetch } from 'undici'
 
 // Virtual file system for processed content
 const virtualFs = new Map<string, VirtualFile>()

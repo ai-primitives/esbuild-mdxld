@@ -1,9 +1,9 @@
-/// <reference lib="dom" />
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mdxld } from '../index'
 import { createBuildStub } from './utils'
 import { mocks } from './setup'
 import type { PluginBuild } from 'esbuild'
+import { Response } from 'undici'
 
 describe('mdxld plugin - HTTP imports', () => {
   beforeEach(() => {

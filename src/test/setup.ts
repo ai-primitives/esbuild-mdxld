@@ -1,5 +1,3 @@
-/// <reference lib="dom" />
-/// <reference lib="dom.iterable" />
 import { vi } from 'vitest'
 
 // Create mock implementations with proper types
@@ -10,45 +8,94 @@ const mockHeaders = vi.fn(() => ({
   has: vi.fn(),
   set: vi.fn(),
   forEach: vi.fn(),
+  entries: vi.fn(),
+  keys: vi.fn(),
+  values: vi.fn(),
 })) as unknown as typeof Headers
 
 const mockRequest = vi.fn(() => ({
   method: 'GET',
   url: '',
   headers: new (mockHeaders as typeof Headers)(),
+  clone: vi.fn(),
+  arrayBuffer: vi.fn(),
+  blob: vi.fn(),
+  formData: vi.fn(),
+  json: vi.fn(),
+  text: vi.fn(),
 })) as unknown as typeof Request
 
-class MockResponse {
-  private body: string
-  private responseInit: ResponseInit
+class MockResponse implements Response {
+  readonly type: ResponseType
+  readonly url: string
+  readonly redirected: boolean
+  readonly ok: boolean
+  readonly status: number
+  readonly statusText: string
+  readonly headers: Headers
+  readonly body: ReadableStream<Uint8Array> | null
+  readonly bodyUsed: boolean
 
-  constructor(body?: BodyInit | null, init?: ResponseInit) {
-    this.body = typeof body === 'string' ? body : 'Test content'
-    this.responseInit = init || { status: 200, statusText: 'OK' }
+  private _bodyStr: string
+
+  constructor(bodyInit?: BodyInit | null, init?: ResponseInit) {
+    const initOptions = init || { status: 200, statusText: 'OK' }
+    this.type = 'default'
+    this.url = ''
+    this.redirected = false
+    this.status = initOptions.status ?? 200
+    this.statusText = initOptions.statusText ?? 'OK'
+    this.ok = this.status >= 200 && this.status < 300
+    this.headers = new (mockHeaders as typeof Headers)()
+    this.bodyUsed = false
+    this._bodyStr = ''
+
+    if (bodyInit === null || bodyInit === undefined) {
+      this.body = null
+    } else if (typeof bodyInit === 'string') {
+      this._bodyStr = bodyInit
+      this.body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(bodyInit))
+          controller.close()
+        },
+      })
+    } else {
+      this._bodyStr = 'Test content'
+      this.body = null
+    }
   }
 
-  get ok() {
-    return this.responseInit.status === undefined || (this.responseInit.status >= 200 && this.responseInit.status < 300)
+  async arrayBuffer(): Promise<ArrayBuffer> {
+    return new TextEncoder().encode(this._bodyStr).buffer
   }
 
-  get status() {
-    return this.responseInit.status ?? 200
+  async blob(): Promise<Blob> {
+    return new Blob([this._bodyStr])
   }
 
-  get statusText() {
-    return this.responseInit.statusText ?? 'OK'
+  clone(): Response {
+    return new MockResponse(this._bodyStr, {
+      status: this.status,
+      statusText: this.statusText,
+      headers: this.headers,
+    })
   }
 
-  get headers() {
-    return new (mockHeaders as typeof Headers)()
+  async formData(): Promise<FormData> {
+    throw new Error('FormData not implemented in mock')
   }
 
-  text() {
-    return Promise.resolve(this.body)
+  async json(): Promise<unknown> {
+    try {
+      return JSON.parse(this._bodyStr)
+    } catch {
+      return {}
+    }
   }
 
-  json() {
-    return Promise.resolve({})
+  async text(): Promise<string> {
+    return this._bodyStr
   }
 }
 
@@ -56,18 +103,24 @@ const mockResponse = vi.fn((body?: BodyInit | null, init?: ResponseInit) => {
   return new MockResponse(body, init)
 }) as unknown as typeof Response
 
-const mockFetch = vi.fn().mockImplementation(async (url: string) => {
-  if (url.includes('error') || url.includes('not-found')) {
+const mockFetch = vi.fn().mockImplementation(async (input: RequestInfo | URL, _init?: RequestInit): Promise<Response> => {
+  const urlString = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+  if (urlString.includes('error') || urlString.includes('not-found')) {
     return new MockResponse(null, { status: 404, statusText: 'Not Found' })
   }
-  if (url.includes('test.mdx')) {
+  if (urlString.includes('test.mdx')) {
     return new MockResponse('Response 1')
   }
   return new MockResponse('Test content')
-})
+}) as unknown as typeof globalThis.fetch
 
-// Export mocks for test usage
-export const mocks = {
+// Export mocks with explicit type annotation
+export const mocks: {
+  fetch: typeof globalThis.fetch
+  Headers: typeof Headers
+  Request: typeof Request
+  Response: typeof Response
+} = {
   fetch: mockFetch,
   Headers: mockHeaders,
   Request: mockRequest,
