@@ -2,14 +2,18 @@
 
 ## Core Plugin Implementation
 
-- [ ] Set up plugin structure extending @mdx-js/esbuild
-- [ ] Integrate mdxld for YAML-LD parsing
-- [ ] Add remark-mdxld for MDX enrichment
-- [ ] Implement URI/HTTP import resolution
-  - [ ] Add onResolve hook for http(s):// imports
-  - [ ] Add onLoad hook to fetch remote content
-  - [ ] Cache remote content for performance
-  - [ ] Handle error cases and timeouts
+- [x] Set up plugin structure extending @mdx-js/esbuild
+- [x] Integrate mdxld for YAML-LD parsing
+- [x] Add remark-mdxld for MDX enrichment
+- [x] Implement URI/HTTP import resolution
+  - [x] Add onResolve hook for http(s):// imports
+  - [x] Add onLoad hook to fetch remote content
+  - [x] Cache remote content for performance
+  - [x] Handle error cases and timeouts
+
+## Current Blockers
+- [ ] Need unified package for proper type definitions
+- [ ] Resolve type errors in MDXLDOptions interface
 
 ## WASM Support
 
@@ -20,17 +24,18 @@
 
 ## Documentation
 
+- [x] Add initial README
 - [ ] Add API documentation
-- [ ] Add examples for common use cases
-- [ ] Document configuration options
-- [ ] Add contributing guidelines
+- [x] Add examples for common use cases
+- [x] Document configuration options
+- [x] Add contributing guidelines
 
 ## Testing
 
-- [ ] Unit tests for core functionality
-- [ ] Integration tests with example MDX files
+- [x] Unit tests for core functionality
+- [x] Integration tests with example MDX files
 - [ ] WASM-specific tests
-- [ ] Remote content import tests
+- [x] Remote content import tests
 
 ## Future Enhancements
 
