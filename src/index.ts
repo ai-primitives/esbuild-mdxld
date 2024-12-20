@@ -4,6 +4,7 @@
 
 import { Plugin, OnLoadResult, Loader } from 'esbuild'
 import { readFile } from 'node:fs/promises'
+import { fetch } from 'node-fetch'
 import mdx from '@mdx-js/esbuild'
 import remarkMdxld from 'remark-mdxld'
 import matter from 'gray-matter'
