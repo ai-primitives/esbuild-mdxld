@@ -15,7 +15,6 @@ describe('mdxld plugin', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     plugin = mdxld({
-      validateRequired: true,
       preferDollarPrefix: false,
     })
     build = setupTestPlugin(plugin)
@@ -34,11 +33,11 @@ describe('mdxld plugin', () => {
       vi.mocked(fs.readFile).mockResolvedValue(content)
 
       const loadCallback = build.onLoad.mock.calls[0][1]
-      await loadCallback({ path: mdxPath, namespace: 'file' })
+      const result = await loadCallback({ path: mdxPath, namespace: 'file' })
+      const virtualPath = result.path
 
-      // Get the virtual file handler
       const virtualCallback = build.onLoad.mock.calls[2][1]
-      const virtualResult = await virtualCallback({ path: mdxPath, namespace: 'virtual' })
+      const virtualResult = await virtualCallback({ path: virtualPath, namespace: 'virtual' })
 
       expect(virtualResult.contents).toBeDefined()
       expect(virtualResult.contents).toContain('"@context": "https://schema.org"')
@@ -53,10 +52,11 @@ describe('mdxld plugin', () => {
       vi.mocked(fs.readFile).mockResolvedValue(content)
 
       const loadCallback = build.onLoad.mock.calls[0][1]
-      await loadCallback({ path: mdxPath, namespace: 'file' })
+      const result = await loadCallback({ path: mdxPath, namespace: 'file' })
+      const virtualPath = result.path
 
       const virtualCallback = build.onLoad.mock.calls[2][1]
-      const virtualResult = await virtualCallback({ path: mdxPath, namespace: 'virtual' })
+      const virtualResult = await virtualCallback({ path: virtualPath, namespace: 'virtual' })
 
       expect(virtualResult.contents).toBeDefined()
       expect(virtualResult.contents).toContain('"$type": "Product"')

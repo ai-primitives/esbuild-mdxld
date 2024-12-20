@@ -1,7 +1,7 @@
 import { vi } from 'vitest'
 
 // Create mock implementations with proper types
-const mockHeaders = vi.fn(() => ({
+export const mockHeaders = vi.fn(() => ({
   append: vi.fn(),
   delete: vi.fn(),
   get: vi.fn(),
@@ -13,7 +13,7 @@ const mockHeaders = vi.fn(() => ({
   values: vi.fn(),
 })) as unknown as typeof Headers
 
-const mockRequest = vi.fn(() => ({
+export const mockRequest = vi.fn(() => ({
   method: 'GET',
   url: '',
   headers: new (mockHeaders as typeof Headers)(),
@@ -48,21 +48,28 @@ class MockResponse implements Response {
     this.ok = this.status >= 200 && this.status < 300
     this.headers = new (mockHeaders as typeof Headers)()
     this.bodyUsed = false
-    this._bodyStr = ''
 
     if (bodyInit === null || bodyInit === undefined) {
+      this._bodyStr = ''
       this.body = null
     } else if (typeof bodyInit === 'string') {
       this._bodyStr = bodyInit
+      const content = bodyInit
       this.body = new ReadableStream<Uint8Array>({
         start(controller) {
-          controller.enqueue(new TextEncoder().encode(bodyInit))
+          controller.enqueue(new TextEncoder().encode(content))
           controller.close()
         },
       })
     } else {
-      this._bodyStr = 'Test content'
-      this.body = null
+      this._bodyStr = bodyInit.toString()
+      const content = this._bodyStr
+      this.body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(content))
+          controller.close()
+        },
+      })
     }
   }
 
@@ -99,36 +106,35 @@ class MockResponse implements Response {
   }
 }
 
-const mockResponse = vi.fn((body?: BodyInit | null, init?: ResponseInit) => {
+export const mockResponse = vi.fn((body?: BodyInit | null, init?: ResponseInit) => {
   return new MockResponse(body, init)
 }) as unknown as typeof Response
 
-const mockFetch = vi.fn().mockImplementation(async (input: RequestInfo | URL): Promise<Response> => {
+// Create a properly typed fetch mock
+export const mockFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const urlString = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
   if (urlString.includes('error') || urlString.includes('not-found')) {
     return new MockResponse(null, { status: 404, statusText: 'Not Found' })
   }
   if (urlString.includes('test.mdx')) {
-    return new MockResponse('Response 1')
+    return new MockResponse('Response 1', {
+      status: 200,
+      statusText: 'OK',
+      headers: new (mockHeaders as typeof Headers)()
+    })
   }
-  return new MockResponse('Test content')
-}) as unknown as typeof globalThis.fetch
+  return new MockResponse('Test content', {
+    status: 200,
+    statusText: 'OK',
+    headers: new (mockHeaders as typeof Headers)()
+  })
+})
 
-// Export mocks with explicit type annotation
-export const mocks: {
-  fetch: typeof globalThis.fetch
-  Headers: typeof Headers
-  Request: typeof Request
-  Response: typeof Response
-} = {
-  fetch: mockFetch,
-  Headers: mockHeaders,
-  Request: mockRequest,
-  Response: mockResponse,
-}
+// Explicitly set fetch on globalThis
+globalThis.fetch = mockFetch as unknown as typeof fetch
+globalThis.Headers = mockHeaders as unknown as typeof Headers
+globalThis.Request = mockRequest as unknown as typeof Request
+globalThis.Response = mockResponse as unknown as typeof Response
 
-// Assign mocks to globalThis
-globalThis.fetch = mockFetch
-globalThis.Headers = mockHeaders
-globalThis.Request = mockRequest
-globalThis.Response = mockResponse
+// Re-export for convenience
+export { MockResponse }
