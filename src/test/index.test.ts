@@ -3,6 +3,9 @@ import { mdxld } from '../index'
 import type { Plugin, PluginBuild } from 'esbuild'
 import fs from 'node:fs/promises'
 
+// Mock fs module
+vi.mock('node:fs/promises')
+
 type MockFunction<T> = T & ReturnType<typeof vi.fn>
 interface MockPluginBuild extends PluginBuild {
   onLoad: MockFunction<PluginBuild['onLoad']>
@@ -16,6 +19,11 @@ describe('mdxld plugin', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.resetModules()
+
+    // Reset fs mock
+    vi.mocked(fs.readFile).mockReset()
+
     plugin = mdxld({
       validateRequired: true,
     })
@@ -53,7 +61,7 @@ title: Test Post
 ---
 # Content
 `
-      vi.spyOn(fs, 'readFile').mockResolvedValueOnce(mdxContent)
+      vi.mocked(fs.readFile).mockResolvedValueOnce(mdxContent)
       const loadCallback = build.onLoad.mock.calls[0][1]
       const result = await loadCallback({ path: 'test.mdx' })
       expect(result.contents).toContain('"context": "https://schema.org"')
@@ -72,7 +80,7 @@ rating:
 ---
 # Content
 `
-      vi.spyOn(fs, 'readFile').mockResolvedValueOnce(mdxContent)
+      vi.mocked(fs.readFile).mockResolvedValueOnce(mdxContent)
       const loadCallback = build.onLoad.mock.calls[0][1]
       const result = await loadCallback({ path: 'test.mdx' })
       expect(result.contents).toContain('"ratingValue": 4.5')
@@ -96,7 +104,7 @@ author:
 ---
 # Content
 `
-      vi.spyOn(fs, 'readFile').mockResolvedValueOnce(mdxContent)
+      vi.mocked(fs.readFile).mockResolvedValueOnce(mdxContent)
       const loadCallback = build.onLoad.mock.calls[0][1]
       const result = await loadCallback({ path: 'test.mdx' })
       expect(result.contents).toContain('"keywords":')
@@ -120,7 +128,7 @@ author:
 ---
 # Content
 `
-      vi.spyOn(fs, 'readFile').mockResolvedValueOnce(mdxContent)
+      vi.mocked(fs.readFile).mockResolvedValueOnce(mdxContent)
       const loadCallback = build.onLoad.mock.calls[0][1]
       const result = await loadCallback({ path: 'test.mdx' })
       expect(result.contents).toContain('"type": "Person"')
@@ -141,7 +149,7 @@ offers:
 ---
 # Content
 `
-      vi.spyOn(fs, 'readFile').mockResolvedValueOnce(mdxContent)
+      vi.mocked(fs.readFile).mockResolvedValueOnce(mdxContent)
       const loadCallback = build.onLoad.mock.calls[0][1]
       const result = await loadCallback({ path: 'test.mdx' })
       expect(result.contents).toContain('"type": "Offer"')
@@ -158,16 +166,17 @@ offers:
 ---
 # Content
 `
-      vi.spyOn(fs, 'readFile').mockResolvedValueOnce(mdxContent)
+      vi.mocked(fs.readFile).mockResolvedValueOnce(mdxContent)
       const loadCallback = build.onLoad.mock.calls[0][1]
       const result = await loadCallback({ path: 'test.mdx' })
       expect(result.errors).toBeDefined()
       expect(result.errors[0].text).toContain('Error processing MDX file')
+      expect(result.errors[0].text).toContain('Invalid YAML syntax')
     })
 
     it('should handle missing frontmatter', async () => {
       const mdxContent = '# Just content without frontmatter'
-      vi.spyOn(fs, 'readFile').mockResolvedValueOnce(mdxContent)
+      vi.mocked(fs.readFile).mockResolvedValueOnce(mdxContent)
       const loadCallback = build.onLoad.mock.calls[0][1]
       const result = await loadCallback({ path: 'test.mdx' })
       expect(result.contents).toBe(mdxContent)

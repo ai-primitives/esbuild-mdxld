@@ -56,14 +56,17 @@ const processYamlLd = (data: Record<string, unknown>, preferDollarPrefix: boolea
 
   const result: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(data)) {
-    const isLdKey = key.startsWith('@') || (preferDollarPrefix && key.startsWith('$'))
-    const cleanKey = isLdKey ? key.slice(1) : key
-    const prefix = preferDollarPrefix ? '$' : '@'
-
-    if (isLdKey) {
-      result[`${prefix}${cleanKey}`] = processValue(value)
+    // Handle @ and $ prefixes
+    if (key.startsWith('@') || key.startsWith('$')) {
+      const cleanKey = key.slice(1)
+      result[cleanKey] = processValue(value)
     } else {
-      result[key] = processValue(value)
+      // Handle nested objects that might have prefixed keys
+      if (typeof value === 'object' && value !== null) {
+        result[key] = processValue(value)
+      } else {
+        result[key] = value
+      }
     }
   }
   return result
@@ -99,34 +102,38 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
           const source = await fs.readFile(args.path, 'utf8')
           const match = source.match(/^---\n([\s\S]*?)\n---/)
 
-          if (match) {
-            const frontmatter = match[1]
-            try {
-              const yamlData = parse(frontmatter)
-              const processedYaml = processYamlLd(yamlData, Boolean(options.preferDollarPrefix))
-              const yamlString = JSON.stringify(processedYaml, null, 2)
-              const processedSource = source.replace(/^---\n[\s\S]*?\n---/, `---\n${yamlString}\n---`)
-
-              return {
-                contents: processedSource,
-                loader: 'mdx' as ESBuildLoader,
-              }
-            } catch {
-              return {
-                errors: [
-                  {
-                    text: `Error processing MDX file: Invalid YAML syntax`,
-                    location: { file: args.path },
-                  },
-                ],
-              }
+          if (!match) {
+            // No frontmatter, return original content
+            return {
+              contents: source,
+              loader: 'mdx' as ESBuildLoader,
             }
           }
 
-          // No frontmatter, return original content with mdx loader
-          return {
-            contents: source,
-            loader: 'mdx' as ESBuildLoader,
+          const frontmatter = match[1]
+          try {
+            const yamlData = parse(frontmatter)
+            const processedYaml = processYamlLd(yamlData, Boolean(options.preferDollarPrefix))
+            const yamlString = JSON.stringify(processedYaml, null, 2)
+            const contentAfterFrontmatter = source.slice(match[0].length).trim()
+
+            // Create the processed MDX content with the YAML-LD data in frontmatter
+            const processedContent = `---\n${yamlString}\n---\n\n${contentAfterFrontmatter}`
+
+            return {
+              contents: processedContent,
+              loader: 'mdx' as ESBuildLoader,
+            }
+          } catch (error) {
+            return {
+              errors: [
+                {
+                  text: `Error processing MDX file: ${error instanceof Error ? error.message : 'Invalid YAML syntax'}`,
+                  location: { file: args.path },
+                },
+              ],
+              loader: 'mdx' as ESBuildLoader,
+            }
           }
         } catch (error: unknown) {
           const err = error as Error
@@ -137,6 +144,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
                 location: { file: args.path },
               },
             ],
+            loader: 'mdx' as ESBuildLoader,
           }
         }
       })
@@ -178,6 +186,7 @@ export const mdxld = (options: MDXLDOptions = {}): Plugin => {
                 location: { file: args.path },
               },
             ],
+            loader: 'mdx' as ESBuildLoader,
           }
         }
       })

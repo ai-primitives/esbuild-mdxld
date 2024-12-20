@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mdxld } from '../index'
 import type { Plugin, PluginBuild } from 'esbuild'
+import fs from 'node:fs/promises'
+
+// Mock fs module
+vi.mock('node:fs/promises')
 
 type MockFunction<T> = T & ReturnType<typeof vi.fn>
 interface MockPluginBuild extends PluginBuild {
@@ -15,6 +19,11 @@ describe('HTTP import resolution', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.resetModules()
+
+    // Reset fs mock
+    vi.mocked(fs.readFile).mockReset()
+
     plugin = mdxld({
       httpTimeout: 5000,
       httpCacheTTL: 1000,
