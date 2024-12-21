@@ -4,17 +4,20 @@
 
 - [x] Set up plugin structure extending @mdx-js/esbuild
 - [x] Integrate mdxld for YAML-LD parsing
+  - [x] Support both @ and $ prefixes ($ preferred)
+  - [x] Handle all value types (strings, numbers, objects, arrays)
+  - [x] Implement prefix normalization
 - [x] Add remark-mdxld for MDX enrichment
 - [x] Implement URI/HTTP import resolution
   - [x] Add onResolve hook for http(s):// imports
-  - [x] Add onLoad hook to fetch remote content
+  - [x] Add onLoad hook to fetch remote content using native fetch
   - [x] Cache remote content for performance
   - [x] Handle error cases and timeouts
 
 ## Current Blockers
 
-- [ ] Need unified package for proper type definitions
-- [ ] Resolve type errors in MDXLDOptions interface
+- [x] Need unified package for proper type definitions
+- [x] Resolve type errors in MDXLDOptions interface
 
 ## WASM Support
 
